@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Zap, BarChart3, ArrowRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.png";
 
 const features = [
@@ -29,6 +30,8 @@ const navLinks = [
 ];
 
 export default function Landing() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Navigation */}
@@ -54,8 +57,8 @@ export default function Landing() {
             ))}
           </div>
 
-          <Link to="/dashboard">
-            <Button>Sign Up</Button>
+          <Link to={user ? "/dashboard" : "/auth"}>
+            <Button>{user ? "Dashboard" : "Sign Up"}</Button>
           </Link>
         </div>
       </nav>
@@ -74,9 +77,9 @@ export default function Landing() {
               your app marketing with intelligent AI that creates, posts, and optimizes for you.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/dashboard">
+              <Link to={user ? "/dashboard" : "/auth"}>
                 <Button size="lg" className="gap-2 bg-info hover:bg-info/90">
-                  Start Free Trial
+                  {user ? "Go to Dashboard" : "Start Free Trial"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -139,9 +142,9 @@ export default function Landing() {
         <p className="mx-auto mb-8 max-w-xl text-muted-foreground">
           Join thousands of app creators who trust ScrollMarketer to grow their audience.
         </p>
-        <Link to="/dashboard">
+        <Link to={user ? "/dashboard" : "/auth"}>
           <Button size="lg" className="gap-2">
-            Get Started Free
+            {user ? "Go to Dashboard" : "Get Started Free"}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>

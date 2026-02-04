@@ -8,14 +8,16 @@ import {
   BarChart3, 
   Settings,
   Bell,
-  HelpCircle
+  LogOut,
+  Send
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserSettings, useUpdateUserSettings } from "@/hooks/useUserSettings";
 import logo from "@/assets/logo.png";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: AppWindow, label: "Apps", path: "/apps" },
   { icon: FileText, label: "Content", path: "/content" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
@@ -25,8 +27,23 @@ const navItems = [
 
 export function Sidebar() {
   const location = useLocation();
-  const [approvalMode, setApprovalMode] = useState(true);
-  const [autopilot, setAutopilot] = useState(false);
+  const { signOut } = useAuth();
+  const { data: settings } = useUserSettings();
+  const updateSettings = useUpdateUserSettings();
+
+  const handleApprovalModeChange = (checked: boolean) => {
+    updateSettings.mutate({ 
+      approval_mode: checked,
+      autopilot_mode: !checked 
+    });
+  };
+
+  const handleAutopilotChange = (checked: boolean) => {
+    updateSettings.mutate({ 
+      autopilot_mode: checked,
+      approval_mode: !checked 
+    });
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar">
@@ -69,25 +86,36 @@ export function Sidebar() {
             <span className="text-sm font-medium">Approval Mode</span>
           </div>
           <Switch
-            checked={approvalMode}
-            onCheckedChange={setApprovalMode}
+            checked={settings?.approval_mode ?? true}
+            onCheckedChange={handleApprovalModeChange}
             className="data-[state=checked]:bg-info"
           />
         </div>
 
         <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 p-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Switch to Autopilot</span>
-            <span className="rounded bg-secondary/20 px-2 py-0.5 text-xs font-semibold text-secondary">
-              Sonic
-            </span>
+            <Send className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Autopilot</span>
+            {settings?.autopilot_mode && (
+              <span className="rounded bg-success/20 px-2 py-0.5 text-xs font-semibold text-success">
+                ON
+              </span>
+            )}
           </div>
           <Switch
-            checked={autopilot}
-            onCheckedChange={setAutopilot}
+            checked={settings?.autopilot_mode ?? false}
+            onCheckedChange={handleAutopilotChange}
             className="data-[state=checked]:bg-secondary"
           />
         </div>
+
+        <button
+          onClick={() => signOut()}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
       </div>
     </aside>
   );
