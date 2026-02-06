@@ -2,6 +2,9 @@ project_id = "ifphjmrnmfrbsocxrmfw"
 
 [functions.generate-content]
 verify_jwt = false
- 
- [functions.publish-scheduled-content]
- verify_jwt = false
+
+[functions.publish-scheduled-content]
+verify_jwt = false
+
+[functions.send-weekly-report]
+verify_jwt = false

@@ -255,6 +255,63 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_reports: {
+        Row: {
+          created_at: string
+          email_sent: boolean
+          engagement_rate: number | null
+          id: string
+          period_end: string
+          period_start: string
+          posts_published: number
+          sent_at: string | null
+          top_app_id: string | null
+          top_app_name: string | null
+          top_platform: string | null
+          total_clicks: number
+          total_engagements: number
+          total_impressions: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_sent?: boolean
+          engagement_rate?: number | null
+          id?: string
+          period_end: string
+          period_start: string
+          posts_published?: number
+          sent_at?: string | null
+          top_app_id?: string | null
+          top_app_name?: string | null
+          top_platform?: string | null
+          total_clicks?: number
+          total_engagements?: number
+          total_impressions?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_sent?: boolean
+          engagement_rate?: number | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          posts_published?: number
+          sent_at?: string | null
+          top_app_id?: string | null
+          top_app_name?: string | null
+          top_platform?: string | null
+          total_clicks?: number
+          total_engagements?: number
+          total_impressions?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

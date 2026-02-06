@@ -1,29 +1,31 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
-  LayoutDashboard, 
-  AppWindow, 
-  FileText, 
-  Calendar, 
-  BarChart3, 
-  Settings,
-  Bell,
-  LogOut,
-  Send
-} from "lucide-react";
+   LayoutDashboard, 
+   AppWindow, 
+   FileText, 
+   Calendar, 
+   BarChart3, 
+   Mail,
+   Settings,
+   Bell,
+   LogOut,
+   Send
+ } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/useUserSettings";
 import logo from "@/assets/logo.png";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: AppWindow, label: "Apps", path: "/apps" },
-  { icon: FileText, label: "Content", path: "/content" },
-  { icon: Calendar, label: "Calendar", path: "/calendar" },
-  { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-];
+   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+   { icon: AppWindow, label: "Apps", path: "/apps" },
+   { icon: FileText, label: "Content", path: "/content" },
+   { icon: Calendar, label: "Calendar", path: "/calendar" },
+   { icon: BarChart3, label: "Analytics", path: "/analytics" },
+   { icon: Mail, label: "Weekly Reports", path: "/weekly-reports" },
+   { icon: Settings, label: "Settings", path: "/settings" },
+ ];
 
 export function Sidebar() {
   const location = useLocation();

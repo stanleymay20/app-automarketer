@@ -10,6 +10,7 @@ import Apps from "./pages/Apps";
 import Content from "./pages/Content";
 import Calendar from "./pages/Calendar";
 import Analytics from "./pages/Analytics";
+import WeeklyReports from "./pages/WeeklyReports";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -42,11 +43,12 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/apps" element={<ProtectedRoute><Apps /></ProtectedRoute>} />
-      <Route path="/content" element={<ProtectedRoute><Content /></ProtectedRoute>} />
-      <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+       <Route path="/apps" element={<ProtectedRoute><Apps /></ProtectedRoute>} />
+       <Route path="/content" element={<ProtectedRoute><Content /></ProtectedRoute>} />
+       <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+       <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+       <Route path="/weekly-reports" element={<ProtectedRoute><WeeklyReports /></ProtectedRoute>} />
+       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
