@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { App } from "@/hooks/useApps";
 import { addDays, addHours, setHours, setMinutes } from "date-fns";
 
@@ -15,12 +16,21 @@ export function useGenerateContent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: settings } = useUserSettings();
+  const { data: planLimits } = usePlanLimits();
   const [isGenerating, setIsGenerating] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async (app: App) => {
       if (!app.platforms || app.platforms.length === 0) {
         throw new Error("Please select at least one platform for this app");
+      }
+
+      // Check plan limits before generating
+      if (!planLimits?.canCreatePost) {
+        const remainingPosts = planLimits?.postsRemaining || 0;
+        throw new Error(
+          `You've reached your monthly post limit. ${remainingPosts === 0 ? "Upgrade your plan to continue." : `${remainingPosts} post(s) remaining this month.`}`
+        );
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -78,11 +88,21 @@ export function useGenerateContent() {
         .update({ posts_count: (app.posts_count || 0) + posts.length })
         .eq("id", app.id);
 
+      // Increment posts_this_month counter
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await supabase
+          .from("user_settings")
+          .update({ posts_this_month: (settings?.posts_this_month || 0) + posts.length })
+          .eq("user_id", currentUser.id);
+      }
+
       return insertedContent;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["content"] });
       queryClient.invalidateQueries({ queryKey: ["apps"] });
+      queryClient.invalidateQueries({ queryKey: ["plan-limits"] });
       toast({
         title: "Content generated!",
         description: `${data.length} posts created and ${settings?.autopilot_mode ? "approved for publishing" : "waiting for approval"}.`,

@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AppCard } from "@/components/dashboard/AppCard";
 import { AutopilotStatusCard } from "@/components/dashboard/AutopilotStatusCard";
 import { WeeklySummaryCard } from "@/components/dashboard/WeeklySummaryCard";
+import { UsageCard } from "@/components/dashboard/UsageCard";
 import { AddAppDialog } from "@/components/apps/AddAppDialog";
 import { useApps } from "@/hooks/useApps";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -110,30 +111,7 @@ export default function Dashboard() {
           {/* Sidebar */}
           <div className="space-y-4">
             <WeeklySummaryCard />
-
-            {/* Usage Card */}
-            {planLimits && planLimits.plan === "free" && (
-              <Card className="border-warning/30 bg-warning/5">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Crown className="h-5 w-5 text-warning mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">Free Plan</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {planLimits.postsRemaining === "unlimited"
-                          ? "Unlimited posts"
-                          : `${planLimits.postsRemaining} posts remaining`}
-                      </p>
-                      <Link to="/settings">
-                        <Button size="sm" className="mt-3 w-full">
-                          Upgrade to Starter
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {planLimits && <UsageCard planLimits={planLimits} />}
           </div>
         </div>
       </div>
