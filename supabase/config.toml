@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.reset-monthly-usage]
 verify_jwt = false
+
+[functions.send-usage-alert]
+verify_jwt = false
