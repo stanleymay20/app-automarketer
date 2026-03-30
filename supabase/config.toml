@@ -14,3 +14,12 @@ verify_jwt = false
 
 [functions.send-usage-alert]
 verify_jwt = false
+
+[functions.x-auth-start]
+verify_jwt = false
+
+[functions.x-auth-callback]
+verify_jwt = false
+
+[functions.x-refresh-token]
+verify_jwt = false
