@@ -176,35 +176,50 @@ export type Database = {
       }
       platform_connections: {
         Row: {
+          access_token: string | null
           account_id: string | null
           account_name: string | null
           connected: boolean
           connected_at: string | null
           created_at: string
+          expires_at: string | null
           id: string
           platform: string
+          refresh_token: string | null
+          scope: string | null
+          token_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_token?: string | null
           account_id?: string | null
           account_name?: string | null
           connected?: boolean
           connected_at?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           platform: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_token?: string | null
           account_id?: string | null
           account_name?: string | null
           connected?: boolean
           connected_at?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           platform?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
           updated_at?: string
           user_id?: string
         }
