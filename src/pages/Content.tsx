@@ -161,6 +161,22 @@ export default function Content() {
                     )}
                   </div>
                   <div className="flex gap-2">
+                    {item.status === "approved" && item.platform === "x" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="gap-1"
+                        onClick={() => publishNow.mutate(item.id)}
+                        disabled={publishNow.isPending}
+                      >
+                        {publishNow.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Send className="h-3 w-3" />
+                        )}
+                        Publish Now
+                      </Button>
+                    )}
                     {item.status === "pending" && (
                       <Button 
                         size="sm" 
