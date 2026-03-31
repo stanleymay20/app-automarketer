@@ -3,20 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
- import { Alert, AlertDescription } from "@/components/ui/alert";
- import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useContent, useApproveContent, useDeleteContent } from "@/hooks/useContent";
 import { useApps } from "@/hooks/useApps";
 import { useGenerateContent } from "@/hooks/useGenerateContent";
- import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
- import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink } from "lucide-react";
+import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   approved: "bg-success/10 text-success border-success/20",
   pending: "bg-warning/10 text-warning border-warning/20",
   published: "bg-info/10 text-info border-info/20",
   rejected: "bg-destructive/10 text-destructive border-destructive/20",
+  failed: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 const platformLabels: Record<string, string> = {
@@ -30,29 +31,28 @@ const platformLabels: Record<string, string> = {
 export default function Content() {
   const { data: content, isLoading } = useContent();
   const { data: apps } = useApps();
-   const { data: connections } = usePlatformConnections();
+  const { data: connections } = usePlatformConnections();
   const approveContent = useApproveContent();
   const deleteContent = useDeleteContent();
   const { generateContent, isGenerating } = useGenerateContent();
- 
-   // Get disconnected platforms
-   const connectedPlatforms = new Set(
-     connections?.filter((c) => c.connected).map((c) => c.platform) || []
-   );
+
+  const connectedPlatforms = new Set(
+    connections?.filter((c) => c.connected).map((c) => c.platform) || []
+  );
 
   const filterContent = (status?: string) => {
     if (!content) return [];
     if (!status || status === "all") return content;
+    if (status === "failed") return content.filter((c) => c.status === "failed");
     return content.filter((c) => c.status === status);
   };
 
-   const renderContentList = (items: typeof content) => {
-     // Count items with disconnected platforms
-     const disconnectedItems = items?.filter(
-       (item) => !connectedPlatforms.has(item.platform as Platform) && 
-                 (item.status === "pending" || item.status === "approved")
-     ) || [];
- 
+  const renderContentList = (items: typeof content) => {
+    const disconnectedItems = items?.filter(
+      (item) => !connectedPlatforms.has(item.platform as Platform) && 
+                (item.status === "pending" || item.status === "approved")
+    ) || [];
+
     if (!items || items.length === 0) {
       return (
         <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-12 text-center">
@@ -80,88 +80,119 @@ export default function Content() {
     }
 
     return (
-       <TooltipProvider>
-      <div className="space-y-4">
-         {disconnectedItems.length > 0 && (
-           <Alert variant="destructive" className="mb-4">
-             <AlertTriangle className="h-4 w-4" />
-             <AlertDescription>
-               {disconnectedItems.length} post{disconnectedItems.length > 1 ? "s" : ""} scheduled for disconnected platforms. 
-               Connect platforms in Settings to enable publishing.
-             </AlertDescription>
-           </Alert>
-         )}
-        {items.map((item) => (
-           <Card key={item.id} className={`shadow-card ${
-             !connectedPlatforms.has(item.platform as Platform) && 
-             (item.status === "pending" || item.status === "approved")
-               ? "border-destructive/50"
-               : ""
-           }`}>
-            <CardContent className="flex items-start gap-4 p-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Badge variant="outline">{(item as any).apps?.name || "Unknown App"}</Badge>
-                   <Badge variant="secondary" className="gap-1">
-                     {!connectedPlatforms.has(item.platform as Platform) && 
-                      (item.status === "pending" || item.status === "approved") && (
-                       <Tooltip>
-                         <TooltipTrigger>
-                           <Unlink className="h-3 w-3 text-destructive" />
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           Platform not connected
-                         </TooltipContent>
-                       </Tooltip>
-                     )}
-                     {platformLabels[item.platform] || item.platform}
-                   </Badge>
-                  <Badge className={statusColors[item.status as keyof typeof statusColors]}>
-                    {item.status}
-                  </Badge>
-                </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{item.content_text}</p>
-                {item.scheduled_for && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {item.status === "published" ? "Published" : "Scheduled"}: {format(new Date(item.scheduled_for), "MMM d, yyyy h:mm a")}
-                    </span>
+      <TooltipProvider>
+        <div className="space-y-4">
+          {disconnectedItems.length > 0 && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {disconnectedItems.length} post{disconnectedItems.length > 1 ? "s" : ""} scheduled for disconnected platforms. 
+                Connect platforms in Settings to enable publishing.
+              </AlertDescription>
+            </Alert>
+          )}
+          {items.map((item) => {
+            const externalUrl = (item as any).external_url;
+            const failureReason = (item as any).failure_reason;
+            const isFailed = item.status === "failed";
+
+            return (
+              <Card key={item.id} className={`shadow-card ${
+                !connectedPlatforms.has(item.platform as Platform) && 
+                (item.status === "pending" || item.status === "approved")
+                  ? "border-destructive/50"
+                  : isFailed
+                    ? "border-destructive/30"
+                    : ""
+              }`}>
+                <CardContent className="flex items-start gap-4 p-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Badge variant="outline">{(item as any).apps?.name || "Unknown App"}</Badge>
+                      <Badge variant="secondary" className="gap-1">
+                        {!connectedPlatforms.has(item.platform as Platform) && 
+                         (item.status === "pending" || item.status === "approved") && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Unlink className="h-3 w-3 text-destructive" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Platform not connected
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {platformLabels[item.platform] || item.platform}
+                      </Badge>
+                      <Badge className={statusColors[item.status] || statusColors.pending}>
+                        {isFailed && <XCircle className="h-3 w-3 mr-1" />}
+                        {item.status}
+                      </Badge>
+                      {externalUrl && item.status === "published" && (
+                        <a
+                          href={externalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View on X
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{item.content_text}</p>
+                    
+                    {/* Failure reason */}
+                    {isFailed && failureReason && (
+                      <div className="flex items-start gap-2 rounded-md bg-destructive/5 p-2 text-xs text-destructive">
+                        <XCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span>{failureReason}</span>
+                      </div>
+                    )}
+
+                    {item.scheduled_for && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                          {item.status === "published" ? "Published" : item.status === "failed" ? "Failed" : "Scheduled"}: {format(new Date(item.scheduled_for), "MMM d, yyyy h:mm a")}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {item.status === "pending" && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="gap-1 text-success hover:text-success"
-                    onClick={() => approveContent.mutate(item.id)}
-                    disabled={approveContent.isPending}
-                  >
-                    <Check className="h-3 w-3" />
-                    Approve
-                  </Button>
-                )}
-                <Button size="icon" variant="ghost" className="h-8 w-8">
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => deleteContent.mutate(item.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-       </TooltipProvider>
+                  <div className="flex gap-2">
+                    {item.status === "pending" && (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="gap-1 text-success hover:text-success"
+                        onClick={() => approveContent.mutate(item.id)}
+                        disabled={approveContent.isPending}
+                      >
+                        <Check className="h-3 w-3" />
+                        Approve
+                      </Button>
+                    )}
+                    <Button size="icon" variant="ghost" className="h-8 w-8">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => deleteContent.mutate(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </TooltipProvider>
     );
   };
+
+  const failedCount = filterContent("failed").length;
 
   return (
     <DashboardLayout title="Content">
@@ -205,23 +236,30 @@ export default function Content() {
               <TabsTrigger value="published">
                 Published ({filterContent("published").length})
               </TabsTrigger>
+              {failedCount > 0 && (
+                <TabsTrigger value="failed" className="text-destructive">
+                  Failed ({failedCount})
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="all" className="mt-6">
               {renderContentList(content)}
             </TabsContent>
-
             <TabsContent value="pending" className="mt-6">
               {renderContentList(filterContent("pending"))}
             </TabsContent>
-
             <TabsContent value="approved" className="mt-6">
               {renderContentList(filterContent("approved"))}
             </TabsContent>
-
             <TabsContent value="published" className="mt-6">
               {renderContentList(filterContent("published"))}
             </TabsContent>
+            {failedCount > 0 && (
+              <TabsContent value="failed" className="mt-6">
+                {renderContentList(filterContent("failed"))}
+              </TabsContent>
+            )}
           </Tabs>
         )}
       </div>
