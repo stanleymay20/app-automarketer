@@ -9,7 +9,8 @@ import { useContent, useApproveContent, useDeleteContent } from "@/hooks/useCont
 import { useApps } from "@/hooks/useApps";
 import { useGenerateContent } from "@/hooks/useGenerateContent";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
-import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle } from "lucide-react";
+import { usePublishNow } from "@/hooks/usePublishNow";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors: Record<string, string> = {
