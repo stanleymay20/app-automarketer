@@ -3,16 +3,20 @@ import { AppCard } from "@/components/dashboard/AppCard";
 import { AutopilotStatusCard } from "@/components/dashboard/AutopilotStatusCard";
 import { WeeklySummaryCard } from "@/components/dashboard/WeeklySummaryCard";
 import { UsageCard } from "@/components/dashboard/UsageCard";
+import { GrowthGoalCard } from "@/components/dashboard/GrowthGoalCard";
+import { AutonomyStatusCard } from "@/components/dashboard/AutonomyStatusCard";
+import { LearningInsightCard } from "@/components/dashboard/LearningInsightCard";
+import { InterventionInbox } from "@/components/dashboard/InterventionInbox";
 import { AddAppDialog } from "@/components/apps/AddAppDialog";
 import { useApps } from "@/hooks/useApps";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { useContent } from "@/hooks/useContent";
-import { AppWindow, Plus, AlertTriangle, Crown } from "lucide-react";
+import { Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, Navigate } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
+import { AlertTriangle } from "lucide-react";
 
 export default function Dashboard() {
   const { data: apps, isLoading } = useApps();
@@ -20,12 +24,10 @@ export default function Dashboard() {
   const { data: connections } = usePlatformConnections();
   const { data: content } = useContent();
 
-  // Redirect to onboarding if no apps
   if (!isLoading && apps && apps.length === 0) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Check for scheduled content on disconnected platforms
   const disconnectedPlatforms = new Set(
     connections?.filter((c) => !c.connected).map((c) => c.platform) || []
   );
@@ -38,7 +40,6 @@ export default function Dashboard() {
   return (
     <DashboardLayout title="Dashboard">
       <div className="space-y-6">
-        {/* Warning for disconnected platforms */}
         {scheduledOnDisconnected.length > 0 && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -55,7 +56,7 @@ export default function Dashboard() {
           </Alert>
         )}
 
-        {/* Autopilot Status - the hero card */}
+        {/* Autopilot Status */}
         <AutopilotStatusCard />
 
         {/* Main Grid */}
@@ -108,8 +109,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - v2 widgets */}
           <div className="space-y-4">
+            <GrowthGoalCard />
+            <AutonomyStatusCard />
+            <LearningInsightCard />
+            <InterventionInbox />
             <WeeklySummaryCard />
             {planLimits && <UsageCard planLimits={planLimits} />}
           </div>
