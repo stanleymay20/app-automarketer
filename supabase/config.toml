@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.quality-gate]
 verify_jwt = false
+
+[functions.collect-signals]
+verify_jwt = false
+
+[functions.generate-campaign]
+verify_jwt = false

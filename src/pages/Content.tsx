@@ -5,12 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import { useContent, useApproveContent, useDeleteContent } from "@/hooks/useContent";
 import { useApps } from "@/hooks/useApps";
 import { useGenerateContent } from "@/hooks/useGenerateContent";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { usePublishNow } from "@/hooks/usePublishNow";
-import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send } from "lucide-react";
+import { useContentScores } from "@/hooks/useContentScores";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors: Record<string, string> = {
@@ -29,6 +31,31 @@ const platformLabels: Record<string, string> = {
   email: "Email",
 };
 
+function ScoreBadge({ label, value, variant }: { label: string; value: number; variant: "good" | "warn" | "bad" }) {
+  const colors = {
+    good: "text-success",
+    warn: "text-warning",
+    bad: "text-destructive",
+  };
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className={`text-xs font-semibold ${colors[variant]}`}>{value}</span>
+    </div>
+  );
+}
+
+function getScoreVariant(score: number, invert = false): "good" | "warn" | "bad" {
+  if (invert) {
+    if (score <= 15) return "good";
+    if (score <= 30) return "warn";
+    return "bad";
+  }
+  if (score >= 80) return "good";
+  if (score >= 60) return "warn";
+  return "bad";
+}
+
 export default function Content() {
   const { data: content, isLoading } = useContent();
   const { data: apps } = useApps();
@@ -37,6 +64,10 @@ export default function Content() {
   const deleteContent = useDeleteContent();
   const { generateContent, isGenerating } = useGenerateContent();
   const publishNow = usePublishNow();
+
+  const contentIds = content?.map((c) => c.id) || [];
+  const { data: scores } = useContentScores(contentIds.length > 0 ? contentIds : undefined);
+  const scoreMap = new Map(scores?.map((s) => [s.content_id, s]) || []);
 
   const connectedPlatforms = new Set(
     connections?.filter((c) => c.connected).map((c) => c.platform) || []
@@ -97,6 +128,7 @@ export default function Content() {
             const externalUrl = (item as any).external_url;
             const failureReason = (item as any).failure_reason;
             const isFailed = item.status === "failed";
+            const score = scoreMap.get(item.id);
 
             return (
               <Card key={item.id} className={`shadow-card ${
@@ -129,6 +161,12 @@ export default function Content() {
                         {isFailed && <XCircle className="h-3 w-3 mr-1" />}
                         {item.status}
                       </Badge>
+                      {score?.auto_approved && (
+                        <Badge variant="outline" className="gap-1 text-success border-success/20 bg-success/5">
+                          <Brain className="h-3 w-3" />
+                          Auto-approved
+                        </Badge>
+                      )}
                       {externalUrl && item.status === "published" && (
                         <a
                           href={externalUrl}
@@ -143,6 +181,18 @@ export default function Content() {
                     </div>
                     <p className="text-sm text-foreground whitespace-pre-wrap">{item.content_text}</p>
                     
+                    {/* Quality Scores */}
+                    {score && (
+                      <div className="flex items-center gap-4 rounded-md bg-muted/50 px-3 py-2">
+                        <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <ScoreBadge label="Quality" value={score.quality_score} variant={getScoreVariant(score.quality_score)} />
+                        <ScoreBadge label="Clarity" value={score.clarity_score} variant={getScoreVariant(score.clarity_score)} />
+                        <ScoreBadge label="Brand" value={score.brand_score} variant={getScoreVariant(score.brand_score)} />
+                        <ScoreBadge label="Risk" value={score.risk_score} variant={getScoreVariant(score.risk_score, true)} />
+                        <ScoreBadge label="Convert" value={score.conversion_score} variant={getScoreVariant(score.conversion_score)} />
+                      </div>
+                    )}
+
                     {/* Failure reason */}
                     {isFailed && failureReason && (
                       <div className="flex items-start gap-2 rounded-md bg-destructive/5 p-2 text-xs text-destructive">
@@ -159,8 +209,17 @@ export default function Content() {
                         </span>
                       </div>
                     )}
+
+                    {/* Performance signals for published posts */}
+                    {item.status === "published" && (item.impressions || item.engagements || item.clicks) && (
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        {item.impressions ? <span>{item.impressions.toLocaleString()} impressions</span> : null}
+                        {item.engagements ? <span>{item.engagements.toLocaleString()} engagements</span> : null}
+                        {item.clicks ? <span>{item.clicks.toLocaleString()} clicks</span> : null}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     {item.status === "approved" && item.platform === "x" && (
                       <Button
                         size="sm"
