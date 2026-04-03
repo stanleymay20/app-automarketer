@@ -22,12 +22,7 @@ export default function Settings() {
  
   return (
     <DashboardLayout title="Settings">
-      <Tabs defaultValue={defaultTab} className="w-full">
-   const updateSettings = useUpdateUserSettings();
- 
-  return (
-    <DashboardLayout title="Settings">
-      <Tabs defaultValue="general" className="w-full">
+       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="mb-6 flex-wrap">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="autonomy">Autonomy</TabsTrigger>
