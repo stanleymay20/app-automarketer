@@ -82,6 +82,19 @@ export function useGenerateContent() {
 
       if (insertError) throw insertError;
 
+      // Score each post via quality gate (fire-and-forget)
+      for (const item of insertedContent || []) {
+        supabase.functions.invoke("quality-gate", {
+          body: {
+            content_id: item.id,
+            content_text: item.content_text,
+            platform: item.platform,
+            app_id: item.app_id,
+            user_id: user.id,
+          },
+        }).catch((err) => console.error("Quality gate error:", err));
+      }
+
       // Update app posts count
       await supabase
         .from("apps")
