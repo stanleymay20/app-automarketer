@@ -118,6 +118,135 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_audit_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      automation_policies: {
+        Row: {
+          auto_approve_enabled: boolean
+          created_at: string
+          escalation_mode: string
+          id: string
+          max_posts_per_day: number
+          min_quality_score: number
+          quiet_hours_end: number | null
+          quiet_hours_start: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_approve_enabled?: boolean
+          created_at?: string
+          escalation_mode?: string
+          id?: string
+          max_posts_per_day?: number
+          min_quality_score?: number
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_approve_enabled?: boolean
+          created_at?: string
+          escalation_mode?: string
+          id?: string
+          max_posts_per_day?: number
+          min_quality_score?: number
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      campaigns: {
+        Row: {
+          active: boolean
+          app_id: string
+          campaign_name: string
+          created_at: string
+          goal_id: string | null
+          id: string
+          platform_mix: string[] | null
+          posting_frequency: number
+          strategy_summary: string | null
+          themes: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          app_id: string
+          campaign_name: string
+          created_at?: string
+          goal_id?: string | null
+          id?: string
+          platform_mix?: string[] | null
+          posting_frequency?: number
+          strategy_summary?: string | null
+          themes?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          app_id?: string
+          campaign_name?: string
+          created_at?: string
+          goal_id?: string | null
+          id?: string
+          platform_mix?: string[] | null
+          posting_frequency?: number
+          strategy_summary?: string | null
+          themes?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "growth_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content: {
         Row: {
           app_id: string
@@ -179,6 +308,191 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_scores: {
+        Row: {
+          auto_approved: boolean
+          brand_score: number
+          clarity_score: number
+          content_id: string
+          conversion_score: number
+          created_at: string
+          id: string
+          quality_score: number
+          reasons: string | null
+          risk_score: number
+        }
+        Insert: {
+          auto_approved?: boolean
+          brand_score?: number
+          clarity_score?: number
+          content_id: string
+          conversion_score?: number
+          created_at?: string
+          id?: string
+          quality_score?: number
+          reasons?: string | null
+          risk_score?: number
+        }
+        Update: {
+          auto_approved?: boolean
+          brand_score?: number
+          clarity_score?: number
+          content_id?: string
+          conversion_score?: number
+          created_at?: string
+          id?: string
+          quality_score?: number
+          reasons?: string | null
+          risk_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_scores_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: true
+            referencedRelation: "content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      growth_goals: {
+        Row: {
+          app_id: string
+          created_at: string
+          current_value: number
+          end_date: string
+          goal_type: string
+          id: string
+          start_date: string
+          status: string
+          target_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          created_at?: string
+          current_value?: number
+          end_date?: string
+          goal_type?: string
+          id?: string
+          start_date?: string
+          status?: string
+          target_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          created_at?: string
+          current_value?: number
+          end_date?: string
+          goal_type?: string
+          id?: string
+          start_date?: string
+          status?: string
+          target_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_goals_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_insights: {
+        Row: {
+          app_id: string
+          confidence: number
+          created_at: string
+          id: string
+          insight_text: string
+          insight_type: string
+          platform: string | null
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          insight_text: string
+          insight_type?: string
+          platform?: string | null
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          insight_text?: string
+          insight_type?: string
+          platform?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_insights_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_signals: {
+        Row: {
+          captured_at: string
+          clicks: number
+          comments: number
+          content_id: string
+          conversions: number
+          id: string
+          impressions: number
+          likes: number
+          platform: string
+          reposts: number
+        }
+        Insert: {
+          captured_at?: string
+          clicks?: number
+          comments?: number
+          content_id: string
+          conversions?: number
+          id?: string
+          impressions?: number
+          likes?: number
+          platform: string
+          reposts?: number
+        }
+        Update: {
+          captured_at?: string
+          clicks?: number
+          comments?: number
+          content_id?: string
+          conversions?: number
+          id?: string
+          impressions?: number
+          likes?: number
+          platform?: string
+          reposts?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_signals_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "content"
             referencedColumns: ["id"]
           },
         ]
