@@ -1,4 +1,4 @@
-import { Bell, HelpCircle, User } from "lucide-react";
+import { Bell, HelpCircle, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,27 +9,34 @@ import {
 
 interface HeaderProps {
   title: string;
+  onMenuToggle?: () => void;
 }
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, onMenuToggle }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <h1 className="font-display text-2xl font-bold text-foreground">{title}</h1>
-
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden h-8 w-8"
+          onClick={onMenuToggle}
+        >
+          <Menu className="h-5 w-5" />
         </Button>
-        
-        <Button variant="ghost" size="icon">
-          <HelpCircle className="h-5 w-5 text-muted-foreground" />
+        <h1 className="font-display text-lg font-bold text-foreground lg:text-xl">{title}</h1>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="relative h-8 w-8">
+          <Bell className="h-4 w-4 text-muted-foreground" />
+          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full bg-accent">
-              <User className="h-5 w-5 text-muted-foreground" />
+            <Button variant="ghost" size="icon" className="rounded-full bg-accent h-8 w-8">
+              <User className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

@@ -39,7 +39,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout title="Dashboard">
-      <div className="space-y-6">
+      <div className="space-y-4 lg:space-y-6">
         {scheduledOnDisconnected.length > 0 && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -60,31 +60,31 @@ export default function Dashboard() {
         <AutopilotStatusCard />
 
         {/* Main Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-4 lg:gap-6 lg:grid-cols-3">
           {/* App Cards */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold text-foreground">Your Apps</h2>
+              <h2 className="font-display text-base font-semibold text-foreground lg:text-lg">Your Apps</h2>
               {planLimits?.canCreateApp ? (
                 <AddAppDialog />
               ) : (
                 <Link to="/settings">
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Crown className="h-4 w-4 text-warning" />
-                    Upgrade to add more
+                  <Button variant="outline" size="sm" className="gap-2 text-xs">
+                    <Crown className="h-3.5 w-3.5 text-warning" />
+                    Upgrade
                   </Button>
                 </Link>
               )}
             </div>
 
             {isLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-40 rounded-lg bg-muted animate-pulse" />
+                  <div key={i} className="h-36 rounded-lg bg-muted animate-pulse" />
                 ))}
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {apps?.slice(0, 4).map((app) => (
                   <AppCard
                     key={app.id}
@@ -102,15 +102,15 @@ export default function Dashboard() {
 
             {apps && apps.length > 4 && (
               <Link to="/apps">
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full text-sm">
                   View all {apps.length} apps
                 </Button>
               </Link>
             )}
           </div>
 
-          {/* Sidebar - v2 widgets */}
-          <div className="space-y-4">
+          {/* Sidebar widgets */}
+          <div className="space-y-3">
             <GrowthGoalCard />
             <AutonomyStatusCard />
             <LearningInsightCard />
