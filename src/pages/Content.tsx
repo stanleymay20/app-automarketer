@@ -248,7 +248,7 @@ export default function Content() {
                         Approve
                       </Button>
                     )}
-                    <Button size="icon" variant="ghost" className="h-8 w-8">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" disabled title="Edit (Coming Soon)">
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button 

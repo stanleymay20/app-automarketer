@@ -1,111 +1,69 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useContent } from "@/hooks/useContent";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, isSameMonth, isSameDay, parseISO } from "date-fns";
+import { Link } from "react-router-dom";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const scheduledPosts = [
-  { day: 5, app: "AppOne", platform: "X", time: "10:00 AM" },
-  { day: 6, app: "AppTwo", platform: "Instagram", time: "2:00 PM" },
-  { day: 7, app: "AutoBot", platform: "LinkedIn", time: "11:00 AM" },
-  { day: 10, app: "AppOne", platform: "LinkedIn", time: "9:00 AM" },
-  { day: 12, app: "AppTwo", platform: "Facebook", time: "3:00 PM" },
-  { day: 15, app: "AutoBot", platform: "X", time: "10:00 AM" },
-  { day: 18, app: "AppOne", platform: "Instagram", time: "1:00 PM" },
-  { day: 22, app: "AppTwo", platform: "LinkedIn", time: "11:00 AM" },
-];
-
-const appColors: Record<string, string> = {
-  AppOne: "bg-info",
-  AppTwo: "bg-success",
-  AutoBot: "bg-secondary",
+const statusColors: Record<string, string> = {
+  approved: "bg-success",
+  pending: "bg-warning",
+  published: "bg-info",
+  failed: "bg-destructive",
 };
 
 export default function Calendar() {
-  const [currentMonth] = useState(new Date(2025, 1)); // February 2025
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { data: content } = useContent();
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    return { firstDay, daysInMonth };
-  };
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startPadding = getDay(monthStart);
 
-  const { firstDay, daysInMonth } = getDaysInMonth(currentMonth);
-
-  const renderCalendarDays = () => {
-    const days = [];
-    
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-28 border-b border-r border-border/50" />);
+  const contentByDay = useMemo(() => {
+    const map = new Map<string, typeof content>();
+    if (!content) return map;
+    for (const item of content) {
+      const dateStr = item.scheduled_for
+        ? format(parseISO(item.scheduled_for), "yyyy-MM-dd")
+        : item.published_at
+          ? format(parseISO(item.published_at), "yyyy-MM-dd")
+          : null;
+      if (dateStr) {
+        const list = map.get(dateStr) || [];
+        list.push(item);
+        map.set(dateStr, list);
+      }
     }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const postsForDay = scheduledPosts.filter((p) => p.day === day);
-      const isToday = day === 4; // Mock today as Feb 4
-
-      days.push(
-        <div
-          key={day}
-          className={`h-28 border-b border-r border-border/50 p-2 ${
-            isToday ? "bg-accent/50" : ""
-          }`}
-        >
-          <span
-            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-sm ${
-              isToday ? "bg-primary text-primary-foreground" : "text-foreground"
-            }`}
-          >
-            {day}
-          </span>
-          <div className="mt-1 space-y-1">
-            {postsForDay.slice(0, 2).map((post, idx) => (
-              <div
-                key={idx}
-                className={`truncate rounded px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground ${
-                  appColors[post.app]
-                }`}
-              >
-                {post.app} • {post.platform}
-              </div>
-            ))}
-            {postsForDay.length > 2 && (
-              <span className="text-[10px] text-muted-foreground">
-                +{postsForDay.length - 2} more
-              </span>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return days;
-  };
+    return map;
+  }, [content]);
 
   return (
     <DashboardLayout title="Calendar">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <h2 className="font-display text-xl font-semibold">
-              {currentMonth.toLocaleString("default", { month: "long", year: "numeric" })}
+              {format(currentMonth, "MMMM yyyy")}
             </h2>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Schedule Post
-          </Button>
+          <Link to="/content">
+            <Button variant="outline" className="gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              View Content
+            </Button>
+          </Link>
         </div>
 
         <Card className="shadow-card overflow-hidden">
@@ -123,16 +81,60 @@ export default function Calendar() {
             </div>
 
             {/* Calendar grid */}
-            <div className="grid grid-cols-7">{renderCalendarDays()}</div>
+            <div className="grid grid-cols-7">
+              {/* Empty padding cells */}
+              {Array.from({ length: startPadding }).map((_, i) => (
+                <div key={`empty-${i}`} className="h-28 border-b border-r border-border/50" />
+              ))}
+
+              {/* Actual days */}
+              {daysInMonth.map((day) => {
+                const dateKey = format(day, "yyyy-MM-dd");
+                const postsForDay = contentByDay.get(dateKey) || [];
+                const today = isToday(day);
+
+                return (
+                  <div
+                    key={dateKey}
+                    className={`h-28 border-b border-r border-border/50 p-2 ${today ? "bg-accent/50" : ""}`}
+                  >
+                    <span
+                      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-sm ${
+                        today ? "bg-primary text-primary-foreground" : "text-foreground"
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </span>
+                    <div className="mt-1 space-y-1">
+                      {postsForDay.slice(0, 2).map((post, idx) => (
+                        <div
+                          key={idx}
+                          className={`truncate rounded px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground ${
+                            statusColors[post.status] || "bg-muted"
+                          }`}
+                        >
+                          {(post as any).apps?.name || "App"} • {post.platform}
+                        </div>
+                      ))}
+                      {postsForDay.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          +{postsForDay.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
         {/* Legend */}
-        <div className="flex items-center gap-6">
-          {Object.entries(appColors).map(([app, color]) => (
-            <div key={app} className="flex items-center gap-2">
+        <div className="flex items-center gap-6 flex-wrap">
+          {Object.entries(statusColors).map(([status, color]) => (
+            <div key={status} className="flex items-center gap-2">
               <div className={`h-3 w-3 rounded ${color}`} />
-              <span className="text-sm text-muted-foreground">{app}</span>
+              <span className="text-sm text-muted-foreground capitalize">{status}</span>
             </div>
           ))}
         </div>

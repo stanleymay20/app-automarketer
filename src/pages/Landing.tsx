@@ -210,7 +210,7 @@ export default function Landing() {
               <span className="text-secondary">Marketer</span>
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">© 2025 ScrollMarketer. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} ScrollMarketer. All rights reserved.</p>
         </div>
       </footer>
     </div>

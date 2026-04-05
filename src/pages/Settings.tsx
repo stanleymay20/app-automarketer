@@ -52,7 +52,7 @@ export default function Settings() {
                 <Label htmlFor="company">Company Name</Label>
                 <Input id="company" placeholder="Acme Inc." />
               </div>
-              <Button>Save Changes</Button>
+              <Button disabled>Save Changes (Coming Soon)</Button>
             </CardContent>
           </Card>
 
