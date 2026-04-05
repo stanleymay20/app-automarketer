@@ -144,6 +144,11 @@ export function useDisconnectPlatform() {
           connected_at: null,
           account_name: null,
           account_id: null,
+          access_token: null,
+          refresh_token: null,
+          expires_at: null,
+          token_type: null,
+          scope: null,
         })
         .eq("user_id", user.id)
         .eq("platform", platform);
