@@ -237,7 +237,7 @@ export default function Content() {
                     )}
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    {item.status === "approved" && item.platform === "x" && connectedPlatforms.has("x") && (
+                    {item.status === "approved" && (item.platform === "x" || item.platform === "linkedin") && connectedPlatforms.has(item.platform) && (
                       <Button
                         size="sm"
                         variant="default"
@@ -253,7 +253,7 @@ export default function Content() {
                         Publish Now
                       </Button>
                     )}
-                    {item.status === "approved" && item.platform !== "x" && (
+                    {item.status === "approved" && item.platform !== "x" && item.platform !== "linkedin" && (
                       <Badge variant="outline" className="text-muted-foreground text-xs">
                         Auto-publish coming soon
                       </Badge>
