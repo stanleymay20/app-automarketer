@@ -258,13 +258,13 @@ Deno.serve(async (req) => {
             continue;
           }
         } else {
-          // Mock for other platforms
-          console.log(`[Publisher] Mock publishing to ${item.platform}: "${item.content_text.substring(0, 50)}..."`);
+          // Simulated publish for other platforms (no real API yet)
+          console.log(`[Publisher] Simulated publish to ${item.platform}: "${item.content_text.substring(0, 50)}..."`);
         }
 
-        // Only use mock analytics for non-X platforms; real X metrics come from collect-signals
+        // Real X posts get metrics from collect-signals; simulated posts start at 0
         const isRealXPost = item.platform === "x" && externalPostId;
-        const mockAnalytics = isRealXPost ? null : generateMockAnalytics();
+        const metrics = isRealXPost ? null : getSimulatedMetrics();
 
         // Mark as published
         const { error: updateError } = await supabase
@@ -272,9 +272,9 @@ Deno.serve(async (req) => {
           .update({ 
             status: 'published', 
             published_at: new Date().toISOString(),
-            impressions: mockAnalytics?.impressions ?? 0,
-            engagements: mockAnalytics?.engagements ?? 0,
-            clicks: mockAnalytics?.clicks ?? 0,
+            impressions: metrics?.impressions ?? 0,
+            engagements: metrics?.engagements ?? 0,
+            clicks: metrics?.clicks ?? 0,
             external_post_id: externalPostId,
             external_url: externalUrl,
           })
