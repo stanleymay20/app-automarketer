@@ -194,6 +194,13 @@ Deno.serve(async (req) => {
       throw fetchError;
     }
 
+    // Normalize platform names for comparison (handle legacy "X", "LinkedIn" etc.)
+    const normalizeContentPlatforms = (items: typeof contentToPublish) =>
+      items?.map(item => ({
+        ...item,
+        platform: item.platform.toLowerCase().replace("x (twitter)", "x").replace("twitter", "x"),
+      })) || [];
+
     if (!contentToPublish || contentToPublish.length === 0) {
       console.log('[Publisher] No content ready to publish');
       return new Response(
@@ -202,13 +209,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[Publisher] Found ${contentToPublish.length} items to publish`);
+    const normalizedContent = normalizeContentPlatforms(contentToPublish);
+    console.log(`[Publisher] Found ${normalizedContent.length} items to publish`);
 
     const publishedIds: string[] = [];
     const skippedIds: string[] = [];
     const errors: { id: string; error: string }[] = [];
 
-    for (const item of contentToPublish) {
+    for (const item of normalizedContent) {
       try {
         console.log(`[Publisher] Processing ${item.platform} content ${item.id} for user ${item.user_id}`);
 

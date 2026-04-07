@@ -64,10 +64,15 @@ export function useGenerateContent() {
         const scheduledDate = addDays(now, Math.floor(index / 2) + 1);
         const scheduledTime = setMinutes(setHours(scheduledDate, 9 + (index % 3) * 4), 0);
         
+        // Normalize platform to lowercase (AI may return "X", "LinkedIn", etc.)
+        const normalizedPlatform = post.platform.toLowerCase()
+          .replace("x (twitter)", "x")
+          .replace("twitter", "x");
+        
         return {
           app_id: app.id,
           user_id: user.id,
-          platform: post.platform,
+          platform: normalizedPlatform,
           content_text: post.content,
           status,
           scheduled_for: scheduledTime.toISOString(),

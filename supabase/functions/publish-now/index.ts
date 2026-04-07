@@ -105,7 +105,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (contentItem.platform !== "x") {
+    const normalizedPlatform = contentItem.platform.toLowerCase().replace("x (twitter)", "x").replace("twitter", "x");
+    if (normalizedPlatform !== "x") {
       return new Response(JSON.stringify({ error: "Manual publish only supported for X" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
