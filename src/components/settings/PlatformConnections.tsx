@@ -31,7 +31,7 @@ const tokenStatusConfig = {
 export function PlatformConnections() {
   const { data: apps } = useApps();
   const [selectedAppId, setSelectedAppId] = useState<string | undefined>(undefined);
-  const { data: connections, isLoading } = usePlatformConnections(selectedAppId);
+  const { data: connections, isLoading, isError } = usePlatformConnections(selectedAppId);
   const { data: content } = useContent();
   const connectPlatform = useConnectPlatform();
   const disconnectPlatform = useDisconnectPlatform();
