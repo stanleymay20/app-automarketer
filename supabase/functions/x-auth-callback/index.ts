@@ -33,28 +33,37 @@ Deno.serve(async (req) => {
     if (!clientId) throw new Error("X_CLIENT_ID is not configured");
     if (!clientSecret) throw new Error("X_CLIENT_SECRET is not configured");
 
-    const appUrl = Deno.env.get("APP_URL") 
+    const fallbackAppUrl = Deno.env.get("APP_URL") 
       || req.headers.get("referer")?.replace(/\/settings.*$/, "")
       || req.headers.get("origin")
       || "https://app-automarketer.lovable.app";
 
     if (error) {
       console.error("X OAuth error:", error);
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=${error}`, 302);
+      return Response.redirect(`${fallbackAppUrl}/settings?tab=platforms&error=${error}`, 302);
     }
 
     if (!code || !state) {
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=missing_params`, 302);
+      return Response.redirect(`${fallbackAppUrl}/settings?tab=platforms&error=missing_params`, 302);
     }
 
-    // Parse state: "randomState:userId" or "randomState:userId:appId"
     const stateParts = state.split(":");
     const storedState = stateParts[0];
     const userId = stateParts[1];
     const appId = stateParts[2] || null;
+    const returnTo = stateParts[3] || null;
+
+    let appUrl = fallbackAppUrl;
+    if (returnTo) {
+      try {
+        appUrl = new URL(decodeURIComponent(returnTo)).origin;
+      } catch {
+        appUrl = fallbackAppUrl;
+      }
+    }
 
     if (!userId) {
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=invalid_state`, 302);
+      return Response.redirect(`${fallbackAppUrl}/settings?tab=platforms&error=invalid_state`, 302);
     }
 
     const serviceClient = createClient(

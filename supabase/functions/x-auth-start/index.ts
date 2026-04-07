@@ -87,9 +87,17 @@ Deno.serve(async (req) => {
 
     // Parse app_id from request body
     let appId: string | null = null;
+    let returnTo: string | null = null;
     try {
       const body = await req.json();
-      appId = body.app_id || null;
+      appId = typeof body.app_id === "string" && body.app_id.length > 0 ? body.app_id : null;
+      if (typeof body.return_to === "string" && body.return_to.length > 0) {
+        try {
+          returnTo = new URL(body.return_to).origin;
+        } catch {
+          returnTo = null;
+        }
+      }
     } catch {
       // No body or invalid JSON — app_id stays null
     }
@@ -123,8 +131,9 @@ Deno.serve(async (req) => {
 
     const redirectUri = getRedirectUri(supabaseUrl);
 
-    // Encode app_id into state so callback can retrieve it
-    const statePayload = appId ? `${state}:${userId}:${appId}` : `${state}:${userId}`;
+    // Encode app_id and return URL into state so callback can retrieve them
+    const encodedReturnTo = returnTo ? encodeURIComponent(returnTo) : "";
+    const statePayload = `${state}:${userId}:${appId ?? ""}:${encodedReturnTo}`;
     
     const scopes = "tweet.write tweet.read users.read offline.access";
     const authUrl = new URL("https://x.com/i/oauth2/authorize");

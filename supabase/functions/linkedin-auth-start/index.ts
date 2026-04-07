@@ -50,9 +50,17 @@ Deno.serve(async (req) => {
     const userId = user.id;
 
     let appId: string | null = null;
+    let returnTo: string | null = null;
     try {
       const body = await req.json();
-      appId = body.app_id || null;
+      appId = typeof body.app_id === "string" && body.app_id.length > 0 ? body.app_id : null;
+      if (typeof body.return_to === "string" && body.return_to.length > 0) {
+        try {
+          returnTo = new URL(body.return_to).origin;
+        } catch {
+          returnTo = null;
+        }
+      }
     } catch {
       // no body
     }
@@ -83,7 +91,8 @@ Deno.serve(async (req) => {
     // Do NOT request openid, profile, or email without the OIDC product.
     const scopes = "w_member_social";
 
-    const statePayload = appId ? `${state}:${userId}:${appId}` : `${state}:${userId}`;
+    const encodedReturnTo = returnTo ? encodeURIComponent(returnTo) : "";
+    const statePayload = `${state}:${userId}:${appId ?? ""}:${encodedReturnTo}`;
 
     const authUrl = new URL("https://www.linkedin.com/oauth/v2/authorization");
     authUrl.searchParams.set("response_type", "code");
