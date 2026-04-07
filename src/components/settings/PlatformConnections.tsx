@@ -12,7 +12,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
-const SUPPORTED_PLATFORMS: Platform[] = ["x"];
+const SUPPORTED_PLATFORMS: Platform[] = ["x", "linkedin"];
 const ALL_PLATFORMS: Platform[] = ["x", "linkedin", "instagram", "facebook"];
 
 const platformConfig: Record<Platform, { name: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
