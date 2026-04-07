@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
     
     let connection = appConnection;
     if (!connection) {
+      // Fallback: user-level connection (null app_id)
       const { data: userConnection } = await supabase
         .from("platform_connections")
         .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
@@ -140,6 +141,18 @@ Deno.serve(async (req) => {
         .is("app_id", null)
         .single();
       connection = userConnection;
+    }
+    if (!connection) {
+      // Fallback: any connected account for this platform
+      const { data: anyConnection } = await supabase
+        .from("platform_connections")
+        .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
+        .eq("user_id", userId)
+        .eq("platform", normalizedPlatform)
+        .eq("connected", true)
+        .limit(1)
+        .single();
+      connection = anyConnection;
     }
 
     if (!connection || !connection.access_token) {
