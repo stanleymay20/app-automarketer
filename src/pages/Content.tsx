@@ -175,7 +175,7 @@ export default function Content() {
                           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                         >
                           <ExternalLink className="h-3 w-3" />
-                          View on X
+                          View on {platformLabels[item.platform] || item.platform}
                         </a>
                       )}
                       {!externalUrl && item.status === "published" && (
