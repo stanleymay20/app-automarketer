@@ -6,12 +6,12 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Generate mock analytics values
-function generateMockAnalytics() {
+// Non-X platforms are simulated — no real API calls, so no real metrics
+function getSimulatedMetrics() {
   return {
-    impressions: Math.floor(Math.random() * 5000) + 500,
-    engagements: Math.floor(Math.random() * 300) + 20,
-    clicks: Math.floor(Math.random() * 100) + 5,
+    impressions: 0,
+    engagements: 0,
+    clicks: 0,
   };
 }
 
