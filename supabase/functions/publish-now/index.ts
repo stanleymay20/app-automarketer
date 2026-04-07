@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     // Fetch the content - must belong to user, be approved, not yet published
     const { data: contentItem, error: contentError } = await supabase
       .from("content")
-      .select("id, user_id, platform, content_text, status, published_at, app_id")
+      .select("id, user_id, platform, content_text, status, published_at, app_id, image_url")
       .eq("id", content_id)
       .eq("user_id", userId)
       .single();
@@ -231,7 +231,64 @@ Deno.serve(async (req) => {
       const authorUrn = `urn:li:person:${connection.account_id}`;
       console.log(`[ManualPublish] Posting to LinkedIn | content=${content_id} author=${authorUrn}`);
 
-      // Use /v2/ugcPosts — documented for Share on LinkedIn self-serve product
+      // Try to upload image if available
+      let assetUrn: string | null = null;
+      if (contentItem.image_url) {
+        try {
+          // 1. Register upload
+          const registerRes = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              registerUploadRequest: {
+                recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+                owner: authorUrn,
+                serviceRelationships: [{ relationshipType: "OWNER", identifier: "urn:li:userGeneratedContent" }],
+              },
+            }),
+          });
+          if (registerRes.ok) {
+            const registerData = await registerRes.json();
+            const uploadUrl = registerData.value?.uploadMechanism?.["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]?.uploadUrl;
+            const asset = registerData.value?.asset;
+            if (uploadUrl && asset) {
+              // 2. Download image
+              const imgRes = await fetch(contentItem.image_url);
+              if (imgRes.ok) {
+                const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
+                const imgType = imgRes.headers.get("content-type") || "image/png";
+                // 3. Upload to LinkedIn
+                const uploadRes = await fetch(uploadUrl, {
+                  method: "PUT",
+                  headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": imgType },
+                  body: imgBytes,
+                });
+                if (uploadRes.ok) {
+                  assetUrn = asset;
+                  console.log(`[ManualPublish] LinkedIn image uploaded: ${asset}`);
+                }
+              }
+            }
+          }
+        } catch (imgErr) {
+          console.error("[ManualPublish] LinkedIn image upload error (continuing text-only):", imgErr);
+        }
+      }
+
+      // Build share content
+      const shareContent: Record<string, unknown> = {
+        shareCommentary: { text: contentItem.content_text },
+      };
+      if (assetUrn) {
+        shareContent.shareMediaCategory = "IMAGE";
+        shareContent.media = [{ status: "READY", media: assetUrn }];
+      } else {
+        shareContent.shareMediaCategory = "NONE";
+      }
+
       const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
         method: "POST",
         headers: {
@@ -242,12 +299,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           author: authorUrn,
           lifecycleState: "PUBLISHED",
-          specificContent: {
-            "com.linkedin.ugc.ShareContent": {
-              shareCommentary: { text: contentItem.content_text },
-              shareMediaCategory: "NONE",
-            },
-          },
+          specificContent: { "com.linkedin.ugc.ShareContent": shareContent },
           visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
         }),
       });
