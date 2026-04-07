@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAutomationPolicy, useUpdateAutomationPolicy } from "@/hooks/useAutomationPolicies";
-import { Bot, Shield, Clock, AlertTriangle } from "lucide-react";
+import { Bot, Shield, Clock, AlertTriangle, Send } from "lucide-react";
 
 function useDebouncedMutate(mutateFn: (val: any) => void, delay = 500) {
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -68,7 +68,45 @@ export function AutomationPolicySettings() {
           />
         </div>
 
-        {/* Quality threshold */}
+        {/* Auto-publish toggle */}
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Send className="h-4 w-4 text-primary" />
+                <p className="font-medium text-foreground">Auto-Publish Scheduled Posts</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                When enabled, approved posts are automatically published at their scheduled time. Otherwise, posts wait for manual publishing.
+              </p>
+            </div>
+            <Switch
+              checked={policy?.auto_publish_enabled ?? false}
+              onCheckedChange={(checked) => updatePolicy.mutate({ auto_publish_enabled: checked })}
+            />
+          </div>
+
+          {policy?.auto_publish_enabled && (
+            <div className="space-y-2 pl-6 border-l-2 border-primary/20">
+              <div className="space-y-1">
+                <Label htmlFor="publishTime" className="text-foreground">Default Publish Time</Label>
+                <p className="text-xs text-muted-foreground">
+                  Posts without a specific schedule will be published at this time daily.
+                </p>
+              </div>
+              <Input
+                id="publishTime"
+                type="time"
+                value={policy?.auto_publish_time?.slice(0, 5) ?? "09:00"}
+                onChange={(e) => {
+                  debouncedUpdate({ auto_publish_time: e.target.value + ":00" });
+                }}
+                className="w-36"
+              />
+            </div>
+          )}
+        </div>
+
         <div className="space-y-3">
           <div className="space-y-1">
             <Label className="text-foreground">Minimum Quality Score</Label>

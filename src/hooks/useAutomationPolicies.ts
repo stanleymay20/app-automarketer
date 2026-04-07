@@ -6,6 +6,8 @@ export interface AutomationPolicy {
   id: string;
   user_id: string;
   auto_approve_enabled: boolean;
+  auto_publish_enabled: boolean;
+  auto_publish_time: string | null;
   min_quality_score: number;
   max_posts_per_day: number;
   quiet_hours_start: number | null;

@@ -151,6 +151,8 @@ export type Database = {
       automation_policies: {
         Row: {
           auto_approve_enabled: boolean
+          auto_publish_enabled: boolean
+          auto_publish_time: string | null
           created_at: string
           escalation_mode: string
           id: string
@@ -163,6 +165,8 @@ export type Database = {
         }
         Insert: {
           auto_approve_enabled?: boolean
+          auto_publish_enabled?: boolean
+          auto_publish_time?: string | null
           created_at?: string
           escalation_mode?: string
           id?: string
@@ -175,6 +179,8 @@ export type Database = {
         }
         Update: {
           auto_approve_enabled?: boolean
+          auto_publish_enabled?: boolean
+          auto_publish_time?: string | null
           created_at?: string
           escalation_mode?: string
           id?: string
