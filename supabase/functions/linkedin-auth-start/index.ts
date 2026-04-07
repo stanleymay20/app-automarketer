@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     );
 
     const encodedReturnTo = returnTo ? encodeURIComponent(returnTo) : "";
-    const scopes = "openid profile w_member_social";
+    const scopes = "r_liteprofile w_member_social";
     const statePayload = `${state}:${userId}:${appId ?? ""}:${encodedReturnTo}`;
     const authUrl = new URL("https://www.linkedin.com/oauth/v2/authorization");
     authUrl.searchParams.set("response_type", "code");

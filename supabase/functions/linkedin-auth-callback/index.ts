@@ -98,6 +98,12 @@ Deno.serve(async (req) => {
     });
 
     const tokenData = await tokenResponse.json();
+    const grantedScopes = new Set(
+      String(tokenData.scope ?? "")
+        .split(/\s+/)
+        .map((scope: string) => scope.trim())
+        .filter(Boolean),
+    );
     console.log("[LinkedInCallback] Token exchange", JSON.stringify({
       status: tokenResponse.status,
       has_access_token: !!tokenData.access_token,
@@ -115,31 +121,80 @@ Deno.serve(async (req) => {
     let accountName = "";
     let accountId = "";
 
-    const meResponse = await fetch(
-      "https://api.linkedin.com/v2/userinfo",
-      { headers: { Authorization: `Bearer ${tokenData.access_token}` } },
-    );
+    const profileRequests = grantedScopes.has("openid")
+      ? [
+          {
+            label: "userinfo",
+            url: "https://api.linkedin.com/v2/userinfo",
+            extractProfile: (data: Record<string, string>) => ({
+              accountId: data.sub || "",
+              accountName:
+                data.name || `${data.given_name || ""} ${data.family_name || ""}`.trim(),
+            }),
+          },
+          {
+            label: "/v2/me",
+            url: "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
+            extractProfile: (data: Record<string, string>) => ({
+              accountId: data.id || "",
+              accountName:
+                `${data.localizedFirstName || ""} ${data.localizedLastName || ""}`.trim(),
+            }),
+          },
+        ]
+      : [
+          {
+            label: "/v2/me",
+            url: "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
+            extractProfile: (data: Record<string, string>) => ({
+              accountId: data.id || "",
+              accountName:
+                `${data.localizedFirstName || ""} ${data.localizedLastName || ""}`.trim(),
+            }),
+          },
+          {
+            label: "userinfo",
+            url: "https://api.linkedin.com/v2/userinfo",
+            extractProfile: (data: Record<string, string>) => ({
+              accountId: data.sub || "",
+              accountName:
+                data.name || `${data.given_name || ""} ${data.family_name || ""}`.trim(),
+            }),
+          },
+        ];
 
-    if (meResponse.ok) {
-      const meData = await meResponse.json();
-      accountId = meData.sub || "";
-      accountName = meData.name || `${meData.given_name || ""} ${meData.family_name || ""}`.trim();
-      console.log("[LinkedInCallback] userinfo profile", JSON.stringify({ accountId, accountName }));
-    } else {
-      console.warn("[LinkedInCallback] /v2/userinfo failed, trying /v2/me");
-      const legacyResponse = await fetch("https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)", {
+    for (const profileRequest of profileRequests) {
+      const profileResponse = await fetch(profileRequest.url, {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
-      if (legacyResponse.ok) {
-        const legacyData = await legacyResponse.json();
-        accountId = legacyData.id || "";
-        accountName = `${legacyData.localizedFirstName || ""} ${legacyData.localizedLastName || ""}`.trim();
-        console.log("[LinkedInCallback] /v2/me profile", JSON.stringify({ accountId, accountName }));
+
+      if (!profileResponse.ok) {
+        const errorBody = await profileResponse.text();
+        console.warn(`[LinkedInCallback] ${profileRequest.label} failed`, JSON.stringify({
+          status: profileResponse.status,
+          body: errorBody,
+        }));
+        continue;
       }
+
+      const profileData = await profileResponse.json();
+      const extracted = profileRequest.extractProfile(profileData);
+      accountId = extracted.accountId;
+      accountName = extracted.accountName;
+      console.log(`[LinkedInCallback] ${profileRequest.label} profile`, JSON.stringify({ accountId, accountName }));
+
+      if (accountId) break;
     }
 
     if (!accountId) {
       console.error("[LinkedInCallback] Could not resolve account_id from any endpoint");
+      return Response.redirect(buildRedirectUrl(appUrl, {
+        platform: "linkedin",
+        status: "error",
+        error: "missing_account_id",
+        error_description: "LinkedIn did not return a member profile id for this app. Reconnect after enabling r_liteprofile or Sign In with LinkedIn for this LinkedIn app.",
+        app_id: appId,
+      }), 302);
     }
 
     const expiresIn = tokenData.expires_in || 5184000;
