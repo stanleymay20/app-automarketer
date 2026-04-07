@@ -33,7 +33,6 @@ Deno.serve(async (req) => {
     if (!clientId) throw new Error("X_CLIENT_ID is not configured");
     if (!clientSecret) throw new Error("X_CLIENT_SECRET is not configured");
 
-    // Determine the app URL for redirects — use APP_URL env, or derive from Referer/Origin
     const appUrl = Deno.env.get("APP_URL") 
       || req.headers.get("referer")?.replace(/\/settings.*$/, "")
       || req.headers.get("origin")
@@ -48,8 +47,12 @@ Deno.serve(async (req) => {
       return Response.redirect(`${appUrl}/settings?tab=platforms&error=missing_params`, 302);
     }
 
-    // Parse state: "randomState:userId"
-    const [storedState, userId] = state.split(":");
+    // Parse state: "randomState:userId" or "randomState:userId:appId"
+    const stateParts = state.split(":");
+    const storedState = stateParts[0];
+    const userId = stateParts[1];
+    const appId = stateParts[2] || null;
+
     if (!userId) {
       return Response.redirect(`${appUrl}/settings?tab=platforms&error=invalid_state`, 302);
     }
@@ -59,13 +62,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Retrieve stored PKCE verifier from DB
-    const { data: connection } = await serviceClient
+    // Retrieve stored PKCE verifier from DB — match on app_id too
+    let connectionQuery = serviceClient
       .from("platform_connections")
       .select("token_type, scope")
       .eq("user_id", userId)
-      .eq("platform", "x")
-      .single();
+      .eq("platform", "x");
+
+    if (appId) {
+      connectionQuery = connectionQuery.eq("app_id", appId);
+    } else {
+      connectionQuery = connectionQuery.is("app_id", null);
+    }
+
+    const { data: connection } = await connectionQuery.single();
 
     if (!connection || connection.scope !== storedState) {
       return Response.redirect(`${appUrl}/settings?tab=platforms&error=state_mismatch`, 302);
@@ -112,27 +122,33 @@ Deno.serve(async (req) => {
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 7200) * 1000).toISOString();
 
-    // Store tokens securely
+    // Store tokens securely — upsert keyed on (user_id, platform, app_id)
+    const upsertData: Record<string, unknown> = {
+      user_id: userId,
+      platform: "x",
+      app_id: appId,
+      connected: true,
+      connected_at: new Date().toISOString(),
+      account_name: `@${profile.username}`,
+      account_id: profile.id,
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token || null,
+      expires_at: expiresAt,
+      token_type: tokenData.token_type || "bearer",
+      scope: tokenData.scope || "",
+    };
+
     await serviceClient.from("platform_connections").upsert(
-      {
-        user_id: userId,
-        platform: "x",
-        connected: true,
-        connected_at: new Date().toISOString(),
-        account_name: `@${profile.username}`,
-        account_id: profile.id,
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token || null,
-        expires_at: expiresAt,
-        token_type: tokenData.token_type || "bearer",
-        scope: tokenData.scope || "",
-      },
-      { onConflict: "user_id,platform" }
+      upsertData,
+      { onConflict: "user_id,platform,app_id" }
     );
 
-    console.log(`X OAuth connected for user ${userId}: @${profile.username}`);
+    console.log(`X OAuth connected for user ${userId} app ${appId}: @${profile.username}`);
 
-    return Response.redirect(`${appUrl}/settings?tab=platforms&connected=x`, 302);
+    const redirectParams = new URLSearchParams({ tab: "platforms", connected: "x" });
+    if (appId) redirectParams.set("app_id", appId);
+
+    return Response.redirect(`${appUrl}/settings?${redirectParams.toString()}`, 302);
   } catch (err) {
     console.error("Error in x-auth-callback:", err);
     const appUrl = Deno.env.get("APP_URL") || "https://app-automarketer.lovable.app";

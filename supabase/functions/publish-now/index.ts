@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     // Fetch the content - must belong to user, be approved, not yet published
     const { data: contentItem, error: contentError } = await supabase
       .from("content")
-      .select("id, user_id, platform, content_text, status, published_at")
+      .select("id, user_id, platform, content_text, status, published_at, app_id")
       .eq("id", content_id)
       .eq("user_id", userId)
       .single();
@@ -119,14 +119,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch X connection
-    const { data: connection } = await supabase
+    // Fetch X connection for this app (or fallback to user-level)
+    let connectionQuery = supabase
       .from("platform_connections")
       .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
       .eq("user_id", userId)
       .eq("platform", "x")
-      .eq("connected", true)
-      .single();
+      .eq("connected", true);
+
+    // Try app-specific connection first
+    const { data: appConnection } = await connectionQuery.eq("app_id", contentItem.app_id).single();
+    
+    let connection = appConnection;
+    if (!connection) {
+      // Fallback to user-level connection (app_id is null)
+      const { data: userConnection } = await supabase
+        .from("platform_connections")
+        .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+        .eq("user_id", userId)
+        .eq("platform", "x")
+        .eq("connected", true)
+        .is("app_id", null)
+        .single();
+      connection = userConnection;
+    }
 
     if (!connection || !connection.access_token) {
       return new Response(JSON.stringify({ error: "X account not connected or missing token" }), {

@@ -6,7 +6,6 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-
 interface PublishResult {
   success: boolean;
   tweetId?: string;
@@ -59,32 +58,55 @@ async function refreshXToken(
   return { access_token: data.access_token };
 }
 
+async function getXConnection(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  appId: string
+) {
+  // Try app-specific connection first
+  const { data: appConn } = await supabase
+    .from("platform_connections")
+    .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+    .eq("user_id", userId)
+    .eq("platform", "x")
+    .eq("connected", true)
+    .eq("app_id", appId)
+    .single();
+
+  if (appConn) return appConn;
+
+  // Fallback to user-level connection
+  const { data: userConn } = await supabase
+    .from("platform_connections")
+    .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+    .eq("user_id", userId)
+    .eq("platform", "x")
+    .eq("connected", true)
+    .is("app_id", null)
+    .single();
+
+  return userConn;
+}
+
 async function publishToX(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   contentId: string,
-  contentText: string
+  contentText: string,
+  appId: string
 ): Promise<PublishResult> {
-  console.log(`[Publisher] publishToX started | content=${contentId} user=${userId}`);
+  console.log(`[Publisher] publishToX started | content=${contentId} user=${userId} app=${appId}`);
 
-  // Check live posting flag
   const livePosting = Deno.env.get("LIVE_X_POSTING");
   if (livePosting !== "true") {
     console.log(`[Publisher] Live X posting disabled (LIVE_X_POSTING=${livePosting}) | content=${contentId}`);
     return { success: false, error: "live_posting_disabled" };
   }
 
-  // Fetch user's X connection with tokens
-  const { data: connection, error: connError } = await supabase
-    .from("platform_connections")
-    .select("id, user_id, connected, access_token, refresh_token, expires_at")
-    .eq("user_id", userId)
-    .eq("platform", "x")
-    .eq("connected", true)
-    .single();
+  const connection = await getXConnection(supabase, userId, appId);
 
-  if (connError || !connection) {
-    console.error(`[Publisher] No X connection for user ${userId} | content=${contentId}`);
+  if (!connection) {
+    console.error(`[Publisher] No X connection for user ${userId} app ${appId} | content=${contentId}`);
     return { success: false, error: "X account not connected" };
   }
 
@@ -115,7 +137,7 @@ async function publishToX(
   let accessToken = connection.access_token;
   if (connection.expires_at) {
     const expiresAt = new Date(connection.expires_at);
-    const bufferTime = new Date(Date.now() + 5 * 60 * 1000); // 5 min buffer
+    const bufferTime = new Date(Date.now() + 5 * 60 * 1000);
     if (expiresAt < bufferTime && connection.refresh_token) {
       const refreshed = await refreshXToken(supabase, {
         id: connection.id,
@@ -151,15 +173,7 @@ async function publishToX(
   }
 
   const tweetId = tweetData.data?.id;
-  // Construct tweet URL using account_id or just use generic format
-  const { data: connInfo } = await supabase
-    .from("platform_connections")
-    .select("account_name")
-    .eq("user_id", userId)
-    .eq("platform", "x")
-    .single();
-
-  const username = connInfo?.account_name?.replace("@", "") || "i";
+  const username = connection.account_name?.replace("@", "") || "i";
   const tweetUrl = `https://x.com/${username}/status/${tweetId}`;
 
   console.log(`[Publisher] Tweet published successfully | content=${contentId} tweet=${tweetId} url=${tweetUrl}`);
@@ -180,7 +194,6 @@ Deno.serve(async (req) => {
 
     console.log('[Publisher] Starting scheduled content publishing run...');
 
-    // Query approved content that's ready to publish
     const now = new Date().toISOString();
     const { data: contentToPublish, error: fetchError } = await supabase
       .from('content')
@@ -194,7 +207,6 @@ Deno.serve(async (req) => {
       throw fetchError;
     }
 
-    // Normalize platform names for comparison (handle legacy "X", "LinkedIn" etc.)
     const normalizeContentPlatforms = (items: typeof contentToPublish) =>
       items?.map(item => ({
         ...item,
@@ -222,51 +234,38 @@ Deno.serve(async (req) => {
 
         let externalPostId: string | null = null;
         let externalUrl: string | null = null;
-        let failureReason: string | null = null;
 
         if (item.platform === "x") {
-          // Real X posting
-          const result = await publishToX(supabase, item.user_id, item.id, item.content_text);
+          const result = await publishToX(supabase, item.user_id, item.id, item.content_text, item.app_id);
 
           if (result.success) {
             externalPostId = result.tweetId || null;
             externalUrl = result.tweetUrl || null;
           } else if (result.error === "daily_cap_reached") {
-            // Skip, don't mark as failed - leave as approved for next run
             console.log(`[Publisher] Skipping content ${item.id} - daily cap reached`);
             skippedIds.push(item.id);
             continue;
           } else if (result.error === "live_posting_disabled") {
-            // Don't fake publish — leave as approved so user knows it wasn't really posted
             console.log(`[Publisher] Skipping content ${item.id} — live X posting is disabled`);
             skippedIds.push(item.id);
             continue;
           } else {
-            // Real failure
-            failureReason = result.error || "Unknown X posting error";
-            const { error: failError } = await supabase
-              .from('content')
-              .update({
-                status: 'failed',
-                failure_reason: failureReason,
-              })
-              .eq('id', item.id)
-              .eq('status', 'approved');
+            const failureReason = result.error || "Unknown X posting error";
+            await supabase.from('content').update({
+              status: 'failed',
+              failure_reason: failureReason,
+            }).eq('id', item.id).eq('status', 'approved');
 
-            if (!failError) {
-              console.log(`[Publisher] Marked content ${item.id} as failed: ${failureReason}`);
-              errors.push({ id: item.id, error: failureReason });
-            }
+            console.log(`[Publisher] Marked content ${item.id} as failed: ${failureReason}`);
+            errors.push({ id: item.id, error: failureReason });
             continue;
           }
         } else {
-          // No real API for non-X platforms yet — skip, don't fake publish
           console.log(`[Publisher] Skipping content ${item.id} — no real API for ${item.platform} yet`);
           skippedIds.push(item.id);
           continue;
         }
 
-        // Only real X posts reach here — mark as published with real data
         const { error: updateError } = await supabase
           .from('content')
           .update({ 
@@ -279,8 +278,8 @@ Deno.serve(async (req) => {
             external_url: externalUrl,
           })
           .eq('id', item.id)
-          .eq('status', 'approved') // Idempotency
-          .is('published_at', null); // Idempotency
+          .eq('status', 'approved')
+          .is('published_at', null);
 
         if (updateError) {
           console.error(`[Publisher] Error updating content ${item.id}:`, updateError);
@@ -293,7 +292,6 @@ Deno.serve(async (req) => {
         console.error(`[Publisher] Error processing content ${item.id}:`, itemError);
         errors.push({ id: item.id, error: String(itemError) });
         
-        // Mark as failed
         await supabase.from('content').update({
           status: 'failed',
           failure_reason: String(itemError),

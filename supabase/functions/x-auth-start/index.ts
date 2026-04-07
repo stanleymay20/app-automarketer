@@ -85,6 +85,15 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
+    // Parse app_id from request body
+    let appId: string | null = null;
+    try {
+      const body = await req.json();
+      appId = body.app_id || null;
+    } catch {
+      // No body or invalid JSON — app_id stays null
+    }
+
     // Generate PKCE values
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -101,6 +110,7 @@ Deno.serve(async (req) => {
       {
         user_id: userId,
         platform: "x",
+        app_id: appId,
         connected: false,
         access_token: null,
         refresh_token: null,
@@ -108,18 +118,21 @@ Deno.serve(async (req) => {
         token_type: codeVerifier,
         scope: state,
       },
-      { onConflict: "user_id,platform" }
+      { onConflict: "user_id,platform,app_id" }
     );
 
     const redirectUri = getRedirectUri(supabaseUrl);
 
+    // Encode app_id into state so callback can retrieve it
+    const statePayload = appId ? `${state}:${userId}:${appId}` : `${state}:${userId}`;
+    
     const scopes = "tweet.write tweet.read users.read offline.access";
     const authUrl = new URL("https://x.com/i/oauth2/authorize");
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("client_id", clientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("scope", scopes);
-    authUrl.searchParams.set("state", `${state}:${userId}`);
+    authUrl.searchParams.set("state", statePayload);
     authUrl.searchParams.set("code_challenge", codeChallenge);
     authUrl.searchParams.set("code_challenge_method", "S256");
 
