@@ -91,18 +91,24 @@ export function AddAppDialog({ trigger }: AddAppDialogProps) {
     },
   });
 
-  const onSubmit = async (values: AppFormValues) => {
-    await createApp.mutateAsync({
-      name: values.name,
-      description: values.description || null,
-      target_audience: values.target_audience || null,
-      primary_goal: values.primary_goal || null,
-      brand_tone: values.brand_tone || null,
-      website_url: values.website_url || null,
-      platforms: values.platforms,
-    });
-    setOpen(false);
-    form.reset();
+  const onSubmit = (values: AppFormValues) => {
+    createApp.mutate(
+      {
+        name: values.name,
+        description: values.description || null,
+        target_audience: values.target_audience || null,
+        primary_goal: values.primary_goal || null,
+        brand_tone: values.brand_tone || null,
+        website_url: values.website_url || null,
+        platforms: values.platforms,
+      },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          form.reset();
+        },
+      }
+    );
   };
 
   return (
