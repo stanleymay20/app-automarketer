@@ -13,14 +13,92 @@ interface AppDetails {
   platforms: string[];
 }
 
+const PLATFORM_DIRECTIVES: Record<string, string> = {
+  linkedin: `## LinkedIn Post Structure (MANDATORY)
+Every LinkedIn post MUST follow this exact structure:
+
+**HOOK** (lines 1–2): A bold, contrarian, or surprising opening that stops the scroll.
+- Pattern interrupts: "Most companies don't have a strategy problem."
+- Contrarian takes: "Dashboards don't drive decisions."
+- Questions that provoke: "When was the last time your team actually tracked execution?"
+
+**INSIGHT** (lines 3–6): Frame the problem clearly with tension.
+- Use short, punchy lines (1 sentence per line)
+- Create a rhythm: statement → evidence → consequence
+
+**VALUE** (lines 7–12): Deliver the transformation or system.
+- Use → arrows for process flows
+- Be specific, not generic ("tracks decisions in real time" not "improves efficiency")
+
+**AUTHORITY** (lines 13–14): Why this matters NOW.
+- Reference a trend, shift, or urgency
+
+**CTA** (last 2–3 lines): End with a question or clear next step.
+- "What's your take?" or "Where does execution break down in your team?"
+
+**FORMATTING RULES:**
+- Use line breaks between every 1–2 sentences (mobile-first)
+- Use "---" as section dividers
+- Max 3 emojis total (professional, not decorative)
+- 3–5 industry-specific hashtags on final line
+- Tone: executive, authoritative, insight-driven
+- Length: 150–300 words
+- NEVER sound like a product brochure or marketing copy
+- Write like a founder sharing hard-won insight`,
+
+  x: `## X (Twitter) Post Structure (MANDATORY)
+Every X post MUST follow these rules:
+
+**FORMAT:**
+- Max 280 characters (including hashtags)
+- One core idea per tweet — no multi-topic threads
+- Front-load the insight in the first 8 words
+
+**TONE:**
+- Punchy, direct, high signal density
+- Write like a sharp founder, not a marketer
+- Contrarian or surprising angles perform best
+- No filler words, no corporate-speak
+
+**STRUCTURE OPTIONS (pick one):**
+1. Bold claim → one-line proof → hashtags
+2. Question that provokes → answer → hashtags
+3. "Most people think X. Reality: Y." → hashtags
+4. Short stat or observation → sharp take → hashtags
+
+**RULES:**
+- 2–3 relevant hashtags max
+- Zero or 1 emoji (never decorative)
+- No "🚀" or "💡" — those signal AI content
+- Must be retweetable on its own
+- Every word must earn its place`,
+
+  instagram: `## Instagram Post Structure
+- Visual-first: the caption supports the image
+- Use 2–3 relevant emojis (not spam)
+- Hook in first line (shown before "more")
+- Short paragraphs with line breaks
+- 5–8 hashtags (mix popular + niche)
+- End with engagement CTA ("save this", "tag someone")
+- Tone: authentic, relatable, value-driven`,
+
+  facebook: `## Facebook Post Structure
+- Conversational, community-focused tone
+- Hook in first 2 lines (shown before "see more")
+- Tell a mini-story or share an observation
+- 3–5 hashtags
+- End with a question to drive comments
+- Tone: warm, approachable, human`,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { app, postsPerPlatform = 2 } = await req.json() as { 
-      app: AppDetails; 
+    const { app, postsPerPlatform = 2 } = await req.json() as {
+      app: AppDetails;
       postsPerPlatform?: number;
     };
 
@@ -29,98 +107,114 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a professional social media marketer. Your job is to create authentic, engaging marketing content for apps.
+    // Generate content for each platform separately for true platform-native output
+    const allPosts: { platform: string; content: string }[] = [];
 
-Rules:
-- Write in a ${app.brand_tone || 'professional'} tone
-- Target audience: ${app.target_audience || 'general audience'}
-- Keep content natural and human - avoid buzzwords and excessive emojis
-- Each post should have a clear call-to-action
-- Adapt the writing style to each platform's culture
-- ALWAYS include 3-5 relevant hashtags at the end of every post, separated by spaces
-- Hashtags should be specific and relevant to the content, industry, and audience
-- Mix popular and niche hashtags for better reach
+    for (const platform of app.platforms) {
+      const normalizedPlatform = platform.toLowerCase()
+        .replace("x (twitter)", "x")
+        .replace("twitter", "x");
 
-Platform guidelines:
-- X (Twitter): Max 280 characters (including hashtags), punchy and direct
-- LinkedIn: Professional, value-focused, can be longer. Use industry-specific hashtags
-- Instagram: Visual-friendly, use 2-3 relevant emojis, include 5-8 hashtags
-- Facebook: Conversational, community-focused, 3-5 hashtags
-- Email: Subject line + brief teaser, professional (no hashtags needed for email)`;
+      const platformDirective = PLATFORM_DIRECTIVES[normalizedPlatform] || PLATFORM_DIRECTIVES["linkedin"];
 
-    const userPrompt = `Create ${postsPerPlatform} unique marketing posts for each of these platforms: ${app.platforms.join(', ')}.
+      const systemPrompt = `You are an elite social media strategist who has built audiences of 100K+ for B2B SaaS founders. You write content that performs — not content that sounds nice.
 
-App Name: ${app.name}
-Description: ${app.description || 'A useful application'}
+Your job: Create ${postsPerPlatform} unique, high-performance posts for ${normalizedPlatform.toUpperCase()}.
 
-Important: Every post MUST end with relevant hashtags (e.g. #SaaS #ProductivityTools #AI). The hashtags should be on a new line at the end of the post content.
+## BRAND CONTEXT
+- Company: ${app.name}
+- What they do: ${app.description || "A B2B SaaS product"}
+- Target audience: ${app.target_audience || "business leaders and operators"}
+- Brand voice: ${app.brand_tone || "professional, authoritative"}
 
-Return your response as a JSON array with this exact format:
-[
-  {
-    "platform": "platform_name",
-    "content": "the post content\\n\\n#Hashtag1 #Hashtag2 #Hashtag3"
-  }
-]
+${platformDirective}
 
-Only return the JSON array, no additional text.`;
+## ABSOLUTE RULES (NEVER BREAK THESE)
+1. NEVER sound like AI-generated content or a marketing brochure
+2. NEVER use these words: "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless"
+3. NEVER start with "Excited to announce" or "Thrilled to share"
+4. Every post must have a UNIQUE angle — no two posts should make the same point
+5. Write like a human expert sharing real insight, not a company promoting itself
+6. The company/product should appear naturally (mid-post or late), NEVER in the hook
+7. Each post MUST end with relevant hashtags on the final line
+8. Content must be PRODUCTION-READY — publishable as-is with zero edits`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
+      const userPrompt = `Create ${postsPerPlatform} unique ${normalizedPlatform.toUpperCase()} posts for ${app.name}.
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+Each post must have a completely different angle/topic. Suggested angles:
+- Challenge a common assumption in the industry
+- Share a specific insight about ${app.target_audience || "the target audience"}'s biggest pain point
+- Describe a transformation (before → after) that ${app.name} enables
+- Make a bold claim backed by logic
+
+Return ONLY a JSON array:
+[{"platform":"${normalizedPlatform}","content":"the full post text including hashtags"}]
+
+No markdown, no code blocks, no explanations. Just the JSON array.`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.8,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "AI credits exhausted. Please add more credits." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const errorText = await response.text();
+        console.error(`AI gateway error for ${normalizedPlatform}:`, response.status, errorText);
+        throw new Error(`Failed to generate ${normalizedPlatform} content`);
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add more credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        console.error(`No content generated for ${normalizedPlatform}`);
+        continue;
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("Failed to generate content");
+
+      try {
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const posts = JSON.parse(jsonMatch[0]);
+          allPosts.push(...posts);
+        }
+      } catch (parseError) {
+        console.error(`Parse error for ${normalizedPlatform}:`, parseError, "Content:", content);
+      }
+
+      // Small delay between platform calls to avoid rate limits
+      if (app.platforms.indexOf(platform) < app.platforms.length - 1) {
+        await new Promise(r => setTimeout(r, 500));
+      }
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No content generated");
+    if (allPosts.length === 0) {
+      throw new Error("Failed to generate any content");
     }
 
-    // Parse the JSON response
-    let posts;
-    try {
-      // Extract JSON from the response (handle markdown code blocks)
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        posts = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("Could not parse AI response");
-      }
-    } catch (parseError) {
-      console.error("Parse error:", parseError, "Content:", content);
-      throw new Error("Failed to parse generated content");
-    }
-
-    return new Response(JSON.stringify({ posts }), {
+    return new Response(JSON.stringify({ posts: allPosts }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
