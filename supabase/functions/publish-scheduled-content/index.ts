@@ -258,19 +258,15 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Real X posts get metrics from collect-signals; simulated posts start at 0
-        const isRealXPost = item.platform === "x" && externalPostId;
-        const metrics = isRealXPost ? null : getSimulatedMetrics();
-
-        // Mark as published
+        // Only real X posts reach here — mark as published with real data
         const { error: updateError } = await supabase
           .from('content')
           .update({ 
             status: 'published', 
             published_at: new Date().toISOString(),
-            impressions: metrics?.impressions ?? 0,
-            engagements: metrics?.engagements ?? 0,
-            clicks: metrics?.clicks ?? 0,
+            impressions: 0,
+            engagements: 0,
+            clicks: 0,
             external_post_id: externalPostId,
             external_url: externalUrl,
           })
