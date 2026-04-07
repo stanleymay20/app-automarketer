@@ -40,7 +40,8 @@ export function PlatformConnections() {
     if (connected === "x") {
       toast.success("Successfully connected to X (Twitter)!");
       queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
-      setSearchParams({}, { replace: true });
+      // Preserve tab param when clearing OAuth params
+      setSearchParams({ tab: "platforms" }, { replace: true });
     } else if (error) {
       const messages: Record<string, string> = {
         access_denied: "You denied access to X. Try again when ready.",
@@ -50,7 +51,7 @@ export function PlatformConnections() {
         server_error: "Something went wrong. Please try again.",
       };
       toast.error(messages[error] || `Connection error: ${error}`);
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: "platforms" }, { replace: true });
     }
   }, [searchParams, setSearchParams, queryClient]);
 

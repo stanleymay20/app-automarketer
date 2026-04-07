@@ -66,6 +66,7 @@ export function usePlatformConnections() {
 
 export function useConnectPlatform() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (platform: Platform) => {
@@ -120,6 +121,7 @@ export function useConnectPlatform() {
     onSuccess: (data, platform) => {
       if (platform !== "x") {
         toast.success(`Connected to ${platform.toUpperCase()} successfully`);
+        queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
       }
       // X redirect handles its own flow
     },

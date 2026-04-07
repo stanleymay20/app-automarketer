@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Generate mock analytics values
@@ -261,8 +262,9 @@ Deno.serve(async (req) => {
           console.log(`[Publisher] Mock publishing to ${item.platform}: "${item.content_text.substring(0, 50)}..."`);
         }
 
-        // Generate mock analytics (for all platforms for now)
-        const mockAnalytics = generateMockAnalytics();
+        // Only use mock analytics for non-X platforms; real X metrics come from collect-signals
+        const isRealXPost = item.platform === "x" && externalPostId;
+        const mockAnalytics = isRealXPost ? null : generateMockAnalytics();
 
         // Mark as published
         const { error: updateError } = await supabase
@@ -270,9 +272,9 @@ Deno.serve(async (req) => {
           .update({ 
             status: 'published', 
             published_at: new Date().toISOString(),
-            impressions: mockAnalytics.impressions,
-            engagements: mockAnalytics.engagements,
-            clicks: mockAnalytics.clicks,
+            impressions: mockAnalytics?.impressions ?? 0,
+            engagements: mockAnalytics?.engagements ?? 0,
+            clicks: mockAnalytics?.clicks ?? 0,
             external_post_id: externalPostId,
             external_url: externalUrl,
           })
