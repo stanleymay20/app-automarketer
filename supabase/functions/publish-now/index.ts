@@ -106,38 +106,36 @@ Deno.serve(async (req) => {
     }
 
     const normalizedPlatform = contentItem.platform.toLowerCase().replace("x (twitter)", "x").replace("twitter", "x");
-    if (normalizedPlatform !== "x") {
-      return new Response(JSON.stringify({ error: "Manual publish only supported for X" }), {
+    if (normalizedPlatform !== "x" && normalizedPlatform !== "linkedin") {
+      return new Response(JSON.stringify({ error: "Manual publish only supported for X and LinkedIn" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check live posting
-    if (Deno.env.get("LIVE_X_POSTING") !== "true") {
+    // Check live posting for X
+    if (normalizedPlatform === "x" && Deno.env.get("LIVE_X_POSTING") !== "true") {
       return new Response(JSON.stringify({ error: "Live X posting is disabled (LIVE_X_POSTING != true)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch X connection for this app (or fallback to user-level)
-    let connectionQuery = supabase
+    // Fetch platform connection (app-specific then user-level)
+    const { data: appConnection } = await supabase
       .from("platform_connections")
-      .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+      .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
       .eq("user_id", userId)
-      .eq("platform", "x")
-      .eq("connected", true);
-
-    // Try app-specific connection first
-    const { data: appConnection } = await connectionQuery.eq("app_id", contentItem.app_id).single();
+      .eq("platform", normalizedPlatform)
+      .eq("connected", true)
+      .eq("app_id", contentItem.app_id)
+      .single();
     
     let connection = appConnection;
     if (!connection) {
-      // Fallback to user-level connection (app_id is null)
       const { data: userConnection } = await supabase
         .from("platform_connections")
-        .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+        .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
         .eq("user_id", userId)
-        .eq("platform", "x")
+        .eq("platform", normalizedPlatform)
         .eq("connected", true)
         .is("app_id", null)
         .single();
@@ -145,7 +143,7 @@ Deno.serve(async (req) => {
     }
 
     if (!connection || !connection.access_token) {
-      return new Response(JSON.stringify({ error: "X account not connected or missing token" }), {
+      return new Response(JSON.stringify({ error: `${normalizedPlatform} account not connected or missing token` }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -155,67 +153,129 @@ Deno.serve(async (req) => {
     if (connection.expires_at) {
       const expiresAt = new Date(connection.expires_at);
       if (expiresAt < new Date(Date.now() + 5 * 60 * 1000) && connection.refresh_token) {
-        const refreshed = await refreshXToken(supabase, {
-          id: connection.id, user_id: userId, refresh_token: connection.refresh_token,
-        });
-        if (refreshed) {
-          accessToken = refreshed.access_token;
-        } else {
-          return new Response(JSON.stringify({ error: "Token expired and refresh failed" }), {
+        if (normalizedPlatform === "x") {
+          const refreshed = await refreshXToken(supabase, {
+            id: connection.id, user_id: userId, refresh_token: connection.refresh_token,
+          });
+          if (refreshed) accessToken = refreshed.access_token;
+          else return new Response(JSON.stringify({ error: "Token expired and refresh failed" }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
+        } else if (normalizedPlatform === "linkedin") {
+          const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
+          const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
+          if (clientId && clientSecret) {
+            const resp = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: connection.refresh_token,
+                client_id: clientId,
+                client_secret: clientSecret,
+              }),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+              accessToken = data.access_token;
+              await supabase.from("platform_connections").update({
+                access_token: data.access_token,
+                refresh_token: data.refresh_token || connection.refresh_token,
+                expires_at: new Date(Date.now() + (data.expires_in || 5184000) * 1000).toISOString(),
+              }).eq("id", connection.id);
+            } else {
+              return new Response(JSON.stringify({ error: "LinkedIn token expired and refresh failed" }), {
+                status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          }
         }
       }
     }
 
-    // Post to X
-    console.log(`[ManualPublish] Posting tweet for user ${userId} | content=${content_id}`);
+    let externalPostId: string | null = null;
+    let externalUrl: string | null = null;
 
-    const tweetResponse = await fetch("https://api.x.com/2/tweets", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: contentItem.content_text }),
-    });
+    if (normalizedPlatform === "x") {
+      console.log(`[ManualPublish] Posting tweet for user ${userId} | content=${content_id}`);
 
-    const tweetData = await tweetResponse.json();
-
-    if (!tweetResponse.ok) {
-      const errorDetail = tweetData.detail || tweetData.title || JSON.stringify(tweetData);
-      const failureReason = `X API ${tweetResponse.status}: ${errorDetail}`;
-
-      await supabase.from("content").update({
-        status: "failed",
-        failure_reason: failureReason,
-      }).eq("id", content_id).eq("status", "approved");
-
-      console.error(`[ManualPublish] Failed | content=${content_id}: ${failureReason}`);
-
-      return new Response(JSON.stringify({ error: failureReason }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const tweetResponse = await fetch("https://api.x.com/2/tweets", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: contentItem.content_text }),
       });
-    }
 
-    const tweetId = tweetData.data?.id;
-    const username = connection.account_name?.replace("@", "") || "i";
-    const tweetUrl = `https://x.com/${username}/status/${tweetId}`;
+      const tweetData = await tweetResponse.json();
+
+      if (!tweetResponse.ok) {
+        const errorDetail = tweetData.detail || tweetData.title || JSON.stringify(tweetData);
+        const failureReason = `X API ${tweetResponse.status}: ${errorDetail}`;
+        await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", content_id).eq("status", "approved");
+        return new Response(JSON.stringify({ error: failureReason }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      externalPostId = tweetData.data?.id;
+      const username = connection.account_name?.replace("@", "") || "i";
+      externalUrl = `https://x.com/${username}/status/${externalPostId}`;
+    } else if (normalizedPlatform === "linkedin") {
+      const authorUrn = `urn:li:person:${connection.account_id}`;
+      console.log(`[ManualPublish] Posting to LinkedIn for user ${userId} | content=${content_id} author=${authorUrn}`);
+
+      const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "X-Restli-Protocol-Version": "2.0.0",
+        },
+        body: JSON.stringify({
+          author: authorUrn,
+          lifecycleState: "PUBLISHED",
+          specificContent: {
+            "com.linkedin.ugc.ShareContent": {
+              shareCommentary: { text: contentItem.content_text },
+              shareMediaCategory: "NONE",
+            },
+          },
+          visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+        }),
+      });
+
+      const postData = await postResponse.json();
+
+      if (!postResponse.ok) {
+        const errorDetail = postData.message || postData.serviceErrorCode || JSON.stringify(postData);
+        const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
+        await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", content_id).eq("status", "approved");
+        return new Response(JSON.stringify({ error: failureReason }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const postId = postData.id || "";
+      externalPostId = postId.replace("urn:li:ugcPost:", "").replace("urn:li:share:", "");
+      externalUrl = `https://www.linkedin.com/feed/update/${postId}`;
+    }
 
     // Update content
     await supabase.from("content").update({
       status: "published",
       published_at: new Date().toISOString(),
-      external_post_id: tweetId,
-      external_url: tweetUrl,
+      external_post_id: externalPostId,
+      external_url: externalUrl,
     }).eq("id", content_id).eq("status", "approved").is("published_at", null);
 
-    console.log(`[ManualPublish] Success | content=${content_id} tweet=${tweetId} url=${tweetUrl}`);
+    console.log(`[ManualPublish] Success | content=${content_id} platform=${normalizedPlatform} url=${externalUrl}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      tweet_id: tweetId, 
-      tweet_url: tweetUrl,
+      post_id: externalPostId, 
+      post_url: externalUrl,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -30,10 +30,11 @@ export function usePublishNow() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success("Published to X!", {
-        description: data.tweet_url ? "View your live tweet" : undefined,
-        action: data.tweet_url
-          ? { label: "View", onClick: () => window.open(data.tweet_url, "_blank") }
+      const url = data.post_url || data.tweet_url;
+      toast.success("Published successfully!", {
+        description: url ? "View your live post" : undefined,
+        action: url
+          ? { label: "View", onClick: () => window.open(url, "_blank") }
           : undefined,
       });
     },

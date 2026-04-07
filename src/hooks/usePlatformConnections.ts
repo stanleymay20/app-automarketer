@@ -79,14 +79,15 @@ export function useConnectPlatform() {
     mutationFn: async ({ platform, appId }: { platform: Platform; appId?: string }) => {
       if (!user) throw new Error("Not authenticated");
 
-      if (platform === "x") {
+      if (platform === "x" || platform === "linkedin") {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
         if (!token) throw new Error("No session token");
 
         const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const functionName = platform === "x" ? "x-auth-start" : "linkedin-auth-start";
         const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/x-auth-start`,
+          `https://${projectId}.supabase.co/functions/v1/${functionName}`,
           {
             method: "POST",
             headers: {
@@ -114,7 +115,7 @@ export function useConnectPlatform() {
         return null;
       }
 
-      throw new Error(`${platform.toUpperCase()} integration is coming soon. Only X (Twitter) is currently supported.`);
+      throw new Error(`${platform.toUpperCase()} integration is coming soon.`);
     },
     onSuccess: (data, { platform }) => {
       if (platform !== "x") {

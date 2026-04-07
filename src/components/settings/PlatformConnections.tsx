@@ -12,7 +12,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
-const SUPPORTED_PLATFORMS: Platform[] = ["x"];
+const SUPPORTED_PLATFORMS: Platform[] = ["x", "linkedin"];
 const ALL_PLATFORMS: Platform[] = ["x", "linkedin", "instagram", "facebook"];
 
 const platformConfig: Record<Platform, { name: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
@@ -54,6 +54,10 @@ export function PlatformConnections() {
 
     if (connected === "x") {
       toast.success("Successfully connected to X (Twitter)!");
+      queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
+      setSearchParams({ tab: "platforms" }, { replace: true });
+    } else if (connected === "linkedin") {
+      toast.success("Successfully connected to LinkedIn!");
       queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
       setSearchParams({ tab: "platforms" }, { replace: true });
     } else if (error) {
