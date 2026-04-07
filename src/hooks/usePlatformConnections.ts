@@ -118,7 +118,7 @@ export function useConnectPlatform() {
       throw new Error(`${platform.toUpperCase()} integration is coming soon.`);
     },
     onSuccess: (data, { platform }) => {
-      if (platform !== "x") {
+      if (platform !== "x" && platform !== "linkedin") {
         toast.success(`Connected to ${platform.toUpperCase()} successfully`);
         queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
       }
