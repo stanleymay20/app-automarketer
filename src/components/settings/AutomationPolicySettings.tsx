@@ -1,3 +1,4 @@
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -7,9 +8,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAutomationPolicy, useUpdateAutomationPolicy } from "@/hooks/useAutomationPolicies";
 import { Bot, Shield, Clock, AlertTriangle } from "lucide-react";
 
+function useDebouncedMutate(mutateFn: (val: any) => void, delay = 500) {
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  return useCallback(
+    (updates: any) => {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => mutateFn(updates), delay);
+    },
+    [mutateFn, delay]
+  );
+}
+
 export function AutomationPolicySettings() {
   const { data: policy, isLoading } = useAutomationPolicy();
   const updatePolicy = useUpdateAutomationPolicy();
+  const debouncedUpdate = useDebouncedMutate(updatePolicy.mutate);
+
+  const [localQuality, setLocalQuality] = useState<number | null>(null);
+  const [localMaxPosts, setLocalMaxPosts] = useState<string>("");
+
+  // Sync local state when policy loads
+  useEffect(() => {
+    if (policy) {
+      setLocalQuality(policy.min_quality_score);
+      setLocalMaxPosts(String(policy.max_posts_per_day));
+    }
+  }, [policy]);
 
   if (isLoading) {
     return <div className="h-64 rounded-lg bg-muted animate-pulse" />;
@@ -49,20 +73,23 @@ export function AutomationPolicySettings() {
           <div className="space-y-1">
             <Label className="text-foreground">Minimum Quality Score</Label>
             <p className="text-xs text-muted-foreground">
-              Posts must score at least this high to be auto-approved. Higher = stricter. (0–100)
+              Posts must score at least this high to be auto-approved. Higher = stricter. (50–100)
             </p>
           </div>
           <div className="flex items-center gap-4">
             <Slider
-              value={[policy?.min_quality_score ?? 85]}
-              onValueChange={([val]) => updatePolicy.mutate({ min_quality_score: val })}
+              value={[localQuality ?? 85]}
+              onValueChange={([val]) => {
+                setLocalQuality(val);
+                debouncedUpdate({ min_quality_score: val });
+              }}
               min={50}
               max={100}
               step={5}
               className="flex-1"
             />
             <span className="w-10 text-right text-sm font-semibold text-foreground">
-              {policy?.min_quality_score ?? 85}
+              {localQuality ?? 85}
             </span>
           </div>
         </div>
@@ -80,8 +107,14 @@ export function AutomationPolicySettings() {
             type="number"
             min={1}
             max={20}
-            value={policy?.max_posts_per_day ?? 4}
-            onChange={(e) => updatePolicy.mutate({ max_posts_per_day: parseInt(e.target.value) || 4 })}
+            value={localMaxPosts}
+            onChange={(e) => {
+              setLocalMaxPosts(e.target.value);
+              const val = parseInt(e.target.value);
+              if (val >= 1 && val <= 20) {
+                debouncedUpdate({ max_posts_per_day: val });
+              }
+            }}
             className="w-24"
           />
         </div>
