@@ -47,11 +47,22 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     // Generate image using AI
-    const imagePrompt = `Create a professional, visually striking social media post image for ${platform || "social media"}. 
-The image should be a modern, clean design that complements this marketing post for "${appName || "an app"}":
-"${contentText.substring(0, 200)}"
+    const imagePrompt = `Create a premium, executive-grade social media graphic for ${platform || "LinkedIn"}. 
+This is for "${appName || "a B2B SaaS product"}".
 
-Style: Professional marketing graphic, modern minimalist design, bold colors, no text overlays, abstract or conceptual imagery that evokes the theme of the post. High quality, suitable for social media.`;
+Post context: "${contentText.substring(0, 200)}"
+
+Design requirements:
+- Dark, modern SaaS aesthetic (deep navy/charcoal background with subtle gradients)
+- Clean minimalist layout with strong visual hierarchy
+- Include a bold, short headline text (3-6 words) that captures the post's key message
+- Use professional typography: large bold headline, smaller supporting text
+- Incorporate subtle geometric shapes, data visualization elements, or abstract tech patterns
+- Brand-quality color palette: primary accent color with high contrast
+- NO stock photo style, NO clip art, NO cartoonish elements
+- Resolution suitable for LinkedIn feed (1200x627 aspect ratio preferred)
+- Should look like it was designed by a professional brand agency
+- Think: McKinsey, Gartner, or top-tier SaaS company visual standards`;
 
     const response = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
