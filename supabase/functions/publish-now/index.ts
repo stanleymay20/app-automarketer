@@ -119,25 +119,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch X connection for this app (or fallback to user-level)
-    let connectionQuery = supabase
+    // Fetch platform connection (app-specific then user-level)
+    const { data: appConnection } = await supabase
       .from("platform_connections")
-      .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+      .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
       .eq("user_id", userId)
-      .eq("platform", "x")
-      .eq("connected", true);
-
-    // Try app-specific connection first
-    const { data: appConnection } = await connectionQuery.eq("app_id", contentItem.app_id).single();
+      .eq("platform", normalizedPlatform)
+      .eq("connected", true)
+      .eq("app_id", contentItem.app_id)
+      .single();
     
     let connection = appConnection;
     if (!connection) {
-      // Fallback to user-level connection (app_id is null)
       const { data: userConnection } = await supabase
         .from("platform_connections")
-        .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+        .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
         .eq("user_id", userId)
-        .eq("platform", "x")
+        .eq("platform", normalizedPlatform)
         .eq("connected", true)
         .is("app_id", null)
         .single();
