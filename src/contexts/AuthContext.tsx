@@ -19,23 +19,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    let isMounted = true;
+    const safetyTimer = window.setTimeout(() => {
+      if (!isMounted) return;
+      console.warn("[Auth] Session bootstrap timeout; releasing loading state");
+      setLoading(false);
+    }, 5000);
+
+    console.info("[Auth] Bootstrapping auth", {
+      href: window.location.href,
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!isMounted) return;
+
+      console.info("[Auth] Auth state changed", {
+        event,
+        hasSession: !!nextSession,
+        userId: nextSession?.user?.id ?? null,
+      });
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    void supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (!isMounted) return;
 
-    return () => subscription.unsubscribe();
+        console.info("[Auth] Initial session resolved", {
+          hasSession: !!data.session,
+          userId: data.session?.user?.id ?? null,
+        });
+
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      })
+      .catch((error) => {
+        console.error("[Auth] Initial session failed", error);
+        if (!isMounted) return;
+        setSession(null);
+        setUser(null);
+      })
+      .finally(() => {
+        window.clearTimeout(safetyTimer);
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

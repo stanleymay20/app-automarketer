@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const PUBLISHED_APP_URL = "https://app-automarketer.lovable.app";
+
 function getRedirectUri(supabaseUrl: string): string {
   const configuredRedirectUri = Deno.env.get("X_REDIRECT_URI")?.trim();
   const fallbackRedirectUri = `${supabaseUrl}/functions/v1/x-auth-callback`;
@@ -19,12 +21,48 @@ function getRedirectUri(supabaseUrl: string): string {
   }
 }
 
+function getAppUrl(): string {
+  const configuredAppUrl = Deno.env.get("APP_URL")?.trim();
+
+  if (!configuredAppUrl) {
+    console.warn(`[XAuthCallback] APP_URL missing; using ${PUBLISHED_APP_URL}`);
+    return PUBLISHED_APP_URL;
+  }
+
+  try {
+    const origin = new URL(configuredAppUrl).origin;
+    if (origin !== PUBLISHED_APP_URL) {
+      console.warn(`[XAuthCallback] APP_URL mismatch (${origin}); using ${PUBLISHED_APP_URL}`);
+      return PUBLISHED_APP_URL;
+    }
+    return origin;
+  } catch {
+    console.warn(`[XAuthCallback] APP_URL invalid; using ${PUBLISHED_APP_URL}`);
+    return PUBLISHED_APP_URL;
+  }
+}
+
+function buildRedirectUrl(appUrl: string, params: Record<string, string | null | undefined>) {
+  const redirectUrl = new URL("/oauth/callback", appUrl);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) {
+      redirectUrl.searchParams.set(key, value);
+    }
+  });
+
+  return redirectUrl.toString();
+}
+
 Deno.serve(async (req) => {
+  const appUrl = getAppUrl();
+
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
     const error = url.searchParams.get("error");
+    const errorDescription = url.searchParams.get("error_description");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const clientId = Deno.env.get("X_CLIENT_ID")!;
@@ -33,45 +71,50 @@ Deno.serve(async (req) => {
     if (!clientId) throw new Error("X_CLIENT_ID is not configured");
     if (!clientSecret) throw new Error("X_CLIENT_SECRET is not configured");
 
-    const fallbackAppUrl = Deno.env.get("APP_URL") 
-      || req.headers.get("referer")?.replace(/\/settings.*$/, "")
-      || req.headers.get("origin")
-      || "https://app-automarketer.lovable.app";
-
     if (error) {
-      console.error("X OAuth error:", error);
-      return Response.redirect(`${fallbackAppUrl}/settings?tab=platforms&error=${error}`, 302);
+      console.error("[XAuthCallback] Provider error", JSON.stringify({ error, errorDescription }));
+      const finalRedirectUrl = buildRedirectUrl(appUrl, {
+        platform: "x",
+        status: "error",
+        error,
+        error_description: errorDescription,
+      });
+      console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+      return Response.redirect(finalRedirectUrl, 302);
     }
 
     if (!code || !state) {
-      return Response.redirect(`${fallbackAppUrl}/settings?tab=platforms&error=missing_params`, 302);
+      const finalRedirectUrl = buildRedirectUrl(appUrl, {
+        platform: "x",
+        status: "error",
+        error: "missing_params",
+      });
+      console.error("[XAuthCallback] Missing code or state params");
+      console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+      return Response.redirect(finalRedirectUrl, 302);
     }
 
     const stateParts = state.split(":");
     const storedState = stateParts[0];
     const userId = stateParts[1];
     const appId = stateParts[2] || null;
-    const returnTo = stateParts[3] || null;
-
-    let appUrl = fallbackAppUrl;
-    if (returnTo) {
-      try {
-        appUrl = new URL(decodeURIComponent(returnTo)).origin;
-      } catch {
-        appUrl = fallbackAppUrl;
-      }
-    }
 
     if (!userId) {
-      return Response.redirect(`${fallbackAppUrl}/settings?tab=platforms&error=invalid_state`, 302);
+      const finalRedirectUrl = buildRedirectUrl(appUrl, {
+        platform: "x",
+        status: "error",
+        error: "invalid_state",
+      });
+      console.error("[XAuthCallback] Invalid state payload", state);
+      console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+      return Response.redirect(finalRedirectUrl, 302);
     }
 
     const serviceClient = createClient(
       supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Retrieve stored PKCE verifier from DB — match on app_id too
     let connectionQuery = serviceClient
       .from("platform_connections")
       .select("token_type, scope")
@@ -87,13 +130,26 @@ Deno.serve(async (req) => {
     const { data: connection } = await connectionQuery.single();
 
     if (!connection || connection.scope !== storedState) {
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=state_mismatch`, 302);
+      const finalRedirectUrl = buildRedirectUrl(appUrl, {
+        platform: "x",
+        status: "error",
+        error: "state_mismatch",
+        app_id: appId,
+      });
+      console.error("[XAuthCallback] State mismatch", JSON.stringify({ stored: connection?.scope, received: storedState }));
+      console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+      return Response.redirect(finalRedirectUrl, 302);
     }
 
     const codeVerifier = connection.token_type;
     const redirectUri = getRedirectUri(supabaseUrl);
 
-    // Exchange code for tokens
+    console.log("[XAuthCallback] Token exchange request", JSON.stringify({
+      redirectUri,
+      appUrl,
+      appId,
+    }));
+
     const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
       method: "POST",
       headers: {
@@ -109,58 +165,85 @@ Deno.serve(async (req) => {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log("[XAuthCallback] Token exchange result", JSON.stringify({
+      status: tokenResponse.status,
+      scope: tokenData.scope ?? null,
+      has_refresh_token: !!tokenData.refresh_token,
+    }));
 
     if (!tokenResponse.ok) {
-      console.error("Token exchange failed:", tokenData);
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=token_exchange_failed`, 302);
+      console.error("[XAuthCallback] Token exchange failed", JSON.stringify(tokenData));
+      const finalRedirectUrl = buildRedirectUrl(appUrl, {
+        platform: "x",
+        status: "error",
+        error: "token_exchange_failed",
+        app_id: appId,
+      });
+      console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+      return Response.redirect(finalRedirectUrl, 302);
     }
 
-    // Fetch user profile
     const profileResponse = await fetch("https://api.x.com/2/users/me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
-
     const profileData = await profileResponse.json();
     const profile = profileData.data;
 
+    console.log("[XAuthCallback] Profile fetch result", JSON.stringify({
+      status: profileResponse.status,
+      username: profile?.username ?? null,
+      id: profile?.id ?? null,
+    }));
+
     if (!profile) {
-      console.error("Failed to fetch X profile:", profileData);
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=profile_fetch_failed`, 302);
+      console.error("[XAuthCallback] Failed to fetch X profile", JSON.stringify(profileData));
+      const finalRedirectUrl = buildRedirectUrl(appUrl, {
+        platform: "x",
+        status: "error",
+        error: "profile_fetch_failed",
+        app_id: appId,
+      });
+      console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+      return Response.redirect(finalRedirectUrl, 302);
     }
 
-    // Calculate token expiry
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 7200) * 1000).toISOString();
 
-    // Store tokens securely — upsert keyed on (user_id, platform, app_id)
-    const upsertData: Record<string, unknown> = {
-      user_id: userId,
-      platform: "x",
-      app_id: appId,
-      connected: true,
-      connected_at: new Date().toISOString(),
-      account_name: `@${profile.username}`,
-      account_id: profile.id,
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token || null,
-      expires_at: expiresAt,
-      token_type: tokenData.token_type || "bearer",
-      scope: tokenData.scope || "",
-    };
-
     await serviceClient.from("platform_connections").upsert(
-      upsertData,
-      { onConflict: "user_id,platform,app_id" }
+      {
+        user_id: userId,
+        platform: "x",
+        app_id: appId,
+        connected: true,
+        connected_at: new Date().toISOString(),
+        account_name: `@${profile.username}`,
+        account_id: profile.id,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token || null,
+        expires_at: expiresAt,
+        token_type: tokenData.token_type || "bearer",
+        scope: tokenData.scope || "",
+      },
+      { onConflict: "user_id,platform,app_id" },
     );
 
-    console.log(`X OAuth connected for user ${userId} app ${appId}: @${profile.username}`);
+    const finalRedirectUrl = buildRedirectUrl(appUrl, {
+      platform: "x",
+      status: "success",
+      connected: "x",
+      app_id: appId,
+    });
 
-    const redirectParams = new URLSearchParams({ tab: "platforms", connected: "x" });
-    if (appId) redirectParams.set("app_id", appId);
-
-    return Response.redirect(`${appUrl}/settings?${redirectParams.toString()}`, 302);
+    console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+    return Response.redirect(finalRedirectUrl, 302);
   } catch (err) {
     console.error("Error in x-auth-callback:", err);
-    const appUrl = Deno.env.get("APP_URL") || "https://app-automarketer.lovable.app";
-    return Response.redirect(`${appUrl}/settings?tab=platforms&error=server_error`, 302);
+    const finalRedirectUrl = buildRedirectUrl(appUrl, {
+      platform: "x",
+      status: "error",
+      error: "server_error",
+    });
+    console.log(`[XAuthCallback] Final redirect URL: ${finalRedirectUrl}`);
+    return Response.redirect(finalRedirectUrl, 302);
   }
 });

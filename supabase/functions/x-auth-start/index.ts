@@ -6,6 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PUBLISHED_APP_URL = "https://app-automarketer.lovable.app";
+
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -50,6 +52,27 @@ function getRedirectUri(supabaseUrl: string): string {
   }
 }
 
+function getAppUrl(): string {
+  const configuredAppUrl = Deno.env.get("APP_URL")?.trim();
+
+  if (!configuredAppUrl) {
+    console.warn(`[XAuthStart] APP_URL missing; using ${PUBLISHED_APP_URL}`);
+    return PUBLISHED_APP_URL;
+  }
+
+  try {
+    const origin = new URL(configuredAppUrl).origin;
+    if (origin !== PUBLISHED_APP_URL) {
+      console.warn(`[XAuthStart] APP_URL mismatch (${origin}); using ${PUBLISHED_APP_URL}`);
+      return PUBLISHED_APP_URL;
+    }
+    return origin;
+  } catch {
+    console.warn(`[XAuthStart] APP_URL invalid; using ${PUBLISHED_APP_URL}`);
+    return PUBLISHED_APP_URL;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,7 +85,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify user is authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -75,7 +97,11 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -85,35 +111,23 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
-    // Parse app_id from request body
     let appId: string | null = null;
-    let returnTo: string | null = null;
     try {
       const body = await req.json();
       appId = typeof body.app_id === "string" && body.app_id.length > 0 ? body.app_id : null;
-      if (typeof body.return_to === "string" && body.return_to.length > 0) {
-        try {
-          returnTo = new URL(body.return_to).origin;
-        } catch {
-          returnTo = null;
-        }
-      }
     } catch {
-      // No body or invalid JSON — app_id stays null
+      appId = null;
     }
 
-    // Generate PKCE values
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = generateState();
 
-    // Store code_verifier and state in DB temporarily using service role
     const serviceClient = createClient(
       supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Upsert a temporary record to store PKCE verifier
     await serviceClient.from("platform_connections").upsert(
       {
         user_id: userId,
@@ -122,19 +136,15 @@ Deno.serve(async (req) => {
         connected: false,
         access_token: null,
         refresh_token: null,
-        // Store verifier temporarily in token_type, state in scope
         token_type: codeVerifier,
         scope: state,
       },
-      { onConflict: "user_id,platform,app_id" }
+      { onConflict: "user_id,platform,app_id" },
     );
 
     const redirectUri = getRedirectUri(supabaseUrl);
-
-    // Encode app_id and return URL into state so callback can retrieve them
-    const encodedReturnTo = returnTo ? encodeURIComponent(returnTo) : "";
-    const statePayload = `${state}:${userId}:${appId ?? ""}:${encodedReturnTo}`;
-    
+    const appUrl = getAppUrl();
+    const statePayload = `${state}:${userId}:${appId ?? ""}`;
     const scopes = "tweet.write tweet.read users.read offline.access";
     const authUrl = new URL("https://x.com/i/oauth2/authorize");
     authUrl.searchParams.set("response_type", "code");
@@ -146,6 +156,15 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set("code_challenge_method", "S256");
     authUrl.searchParams.set("force_login", "true");
 
+    console.log("[XAuthStart] OAuth request", JSON.stringify({
+      userId,
+      appId,
+      redirectUri,
+      appUrl,
+      scopes,
+    }));
+    console.log(`[XAuthStart] Final auth URL: ${authUrl.toString()}`);
+
     return new Response(JSON.stringify({ url: authUrl.toString() }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,7 +173,7 @@ Deno.serve(async (req) => {
     console.error("Error in x-auth-start:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

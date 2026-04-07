@@ -21,6 +21,7 @@ export interface PlatformConnection {
 }
 
 const PLATFORMS: Platform[] = ["x", "linkedin", "instagram", "facebook"];
+const PUBLISHED_APP_ORIGIN = "https://app-automarketer.lovable.app";
 
 export function usePlatformConnections(appId?: string) {
   const { user } = useAuth();
@@ -80,6 +81,10 @@ export function useConnectPlatform() {
       if (!user) throw new Error("Not authenticated");
 
       if (platform === "x" || platform === "linkedin") {
+        if (window.location.origin !== PUBLISHED_APP_ORIGIN) {
+          throw new Error("Open the published app to connect platforms. OAuth callbacks only return there.");
+        }
+
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
         if (!token) throw new Error("No session token");
@@ -94,26 +99,30 @@ export function useConnectPlatform() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              app_id: appId || null,
-              return_to: window.location.origin,
-            }),
+            body: JSON.stringify({ app_id: appId || null }),
           }
         );
 
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Failed to start OAuth");
+        if (!result.url) throw new Error("Provider did not return an authorization URL");
 
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        console.info("[OAuthStart] Launching provider", {
+          platform,
+          appId: appId || null,
+          origin: window.location.origin,
+          mode: isMobile ? "same-window" : "popup",
+        });
 
         if (isMobile) {
-          window.location.assign(result.url);
+          window.location.href = result.url;
           return null;
         }
 
         const authWindow = window.open(result.url, "_blank", "noopener,noreferrer");
         if (!authWindow) {
-          window.location.assign(result.url);
+          window.location.href = result.url;
         }
         return null;
       }

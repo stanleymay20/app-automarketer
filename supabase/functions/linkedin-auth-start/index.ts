@@ -6,10 +6,33 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PUBLISHED_APP_URL = "https://app-automarketer.lovable.app";
+
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
   return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getAppUrl(): string {
+  const configuredAppUrl = Deno.env.get("APP_URL")?.trim();
+
+  if (!configuredAppUrl) {
+    console.warn(`[LinkedInAuthStart] APP_URL missing; using ${PUBLISHED_APP_URL}`);
+    return PUBLISHED_APP_URL;
+  }
+
+  try {
+    const origin = new URL(configuredAppUrl).origin;
+    if (origin !== PUBLISHED_APP_URL) {
+      console.warn(`[LinkedInAuthStart] APP_URL mismatch (${origin}); using ${PUBLISHED_APP_URL}`);
+      return PUBLISHED_APP_URL;
+    }
+    return origin;
+  } catch {
+    console.warn(`[LinkedInAuthStart] APP_URL invalid; using ${PUBLISHED_APP_URL}`);
+    return PUBLISHED_APP_URL;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -39,7 +62,11 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -50,29 +77,19 @@ Deno.serve(async (req) => {
     const userId = user.id;
 
     let appId: string | null = null;
-    let returnTo: string | null = null;
     try {
       const body = await req.json();
       appId = typeof body.app_id === "string" && body.app_id.length > 0 ? body.app_id : null;
-      if (typeof body.return_to === "string" && body.return_to.length > 0) {
-        try {
-          returnTo = new URL(body.return_to).origin;
-        } catch {
-          returnTo = null;
-        }
-      }
     } catch {
-      // no body
+      appId = null;
     }
 
     const state = generateState();
-
     const serviceClient = createClient(
       supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Store state temporarily in scope field for verification in callback
     await serviceClient.from("platform_connections").upsert(
       {
         user_id: userId,
@@ -84,22 +101,27 @@ Deno.serve(async (req) => {
         token_type: null,
         scope: state,
       },
-      { onConflict: "user_id,platform,app_id" }
+      { onConflict: "user_id,platform,app_id" },
     );
 
-    // Only request w_member_social — the only product provisioned on this app.
-    // Do NOT request openid, profile, or email without the OIDC product.
+    const appUrl = getAppUrl();
     const scopes = "w_member_social";
-
-    const encodedReturnTo = returnTo ? encodeURIComponent(returnTo) : "";
-    const statePayload = `${state}:${userId}:${appId ?? ""}:${encodedReturnTo}`;
-
+    const statePayload = `${state}:${userId}:${appId ?? ""}`;
     const authUrl = new URL("https://www.linkedin.com/oauth/v2/authorization");
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("client_id", clientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("scope", scopes);
     authUrl.searchParams.set("state", statePayload);
+
+    console.log("[LinkedInAuthStart] OAuth request", JSON.stringify({
+      userId,
+      appId,
+      redirectUri,
+      appUrl,
+      scopes,
+    }));
+    console.log(`[LinkedInAuthStart] Final auth URL: ${authUrl.toString()}`);
 
     return new Response(JSON.stringify({ url: authUrl.toString() }), {
       status: 200,
@@ -109,7 +131,7 @@ Deno.serve(async (req) => {
     console.error("Error in linkedin-auth-start:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
