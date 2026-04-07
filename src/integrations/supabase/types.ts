@@ -258,6 +258,7 @@ export type Database = {
           external_url: string | null
           failure_reason: string | null
           id: string
+          image_url: string | null
           impressions: number | null
           platform: string
           published_at: string | null
@@ -276,6 +277,7 @@ export type Database = {
           external_url?: string | null
           failure_reason?: string | null
           id?: string
+          image_url?: string | null
           impressions?: number | null
           platform: string
           published_at?: string | null
@@ -294,6 +296,7 @@ export type Database = {
           external_url?: string | null
           failure_reason?: string | null
           id?: string
+          image_url?: string | null
           impressions?: number | null
           platform?: string
           published_at?: string | null

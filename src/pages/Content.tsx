@@ -12,7 +12,7 @@ import { useGenerateContent } from "@/hooks/useGenerateContent";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { usePublishNow } from "@/hooks/usePublishNow";
 import { useContentScores } from "@/hooks/useContentScores";
-import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain } from "lucide-react";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors: Record<string, string> = {
@@ -185,6 +185,18 @@ export default function Content() {
                       )}
                     </div>
                     <p className="text-sm text-foreground whitespace-pre-wrap">{item.content_text}</p>
+                    
+                    {/* Post Image */}
+                    {(item as any).image_url && (
+                      <div className="mt-2 rounded-lg overflow-hidden border max-w-xs">
+                        <img 
+                          src={(item as any).image_url} 
+                          alt="Post image" 
+                          className="w-full h-auto object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                     
                     {/* Quality Scores */}
                     {score && (
