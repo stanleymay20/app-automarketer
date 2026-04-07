@@ -31,6 +31,25 @@ function generateState(): string {
   return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function getRedirectUri(supabaseUrl: string): string {
+  const configuredRedirectUri = Deno.env.get("X_REDIRECT_URI")?.trim();
+  const fallbackRedirectUri = `${supabaseUrl}/functions/v1/x-auth-callback`;
+
+  if (!configuredRedirectUri) {
+    return fallbackRedirectUri;
+  }
+
+  try {
+    const parsed = new URL(configuredRedirectUri);
+    const isLegacyLovableCallback =
+      parsed.hostname === "lovable.dev" && parsed.pathname === "/api/x/callback";
+
+    return isLegacyLovableCallback ? fallbackRedirectUri : configuredRedirectUri;
+  } catch {
+    return fallbackRedirectUri;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -92,7 +111,7 @@ Deno.serve(async (req) => {
       { onConflict: "user_id,platform" }
     );
 
-    const redirectUri = Deno.env.get("X_REDIRECT_URI") || `${supabaseUrl}/functions/v1/x-auth-callback`;
+    const redirectUri = getRedirectUri(supabaseUrl);
 
     const scopes = "tweet.write tweet.read users.read offline.access";
     const authUrl = new URL("https://x.com/i/oauth2/authorize");
