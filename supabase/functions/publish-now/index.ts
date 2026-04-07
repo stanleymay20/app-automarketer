@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     // Fetch the content - must belong to user, be approved, not yet published
     const { data: contentItem, error: contentError } = await supabase
       .from("content")
-      .select("id, user_id, platform, content_text, status, published_at, app_id")
+      .select("id, user_id, platform, content_text, status, published_at, app_id, image_url")
       .eq("id", content_id)
       .eq("user_id", userId)
       .single();
