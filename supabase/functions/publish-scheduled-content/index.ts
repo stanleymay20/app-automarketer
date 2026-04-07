@@ -237,8 +237,10 @@ Deno.serve(async (req) => {
             skippedIds.push(item.id);
             continue;
           } else if (result.error === "live_posting_disabled") {
-            // Simulate publishing when live posting is off
-            console.log(`[Publisher] Simulating publish for content ${item.id} (live posting disabled)`);
+            // Don't fake publish — leave as approved so user knows it wasn't really posted
+            console.log(`[Publisher] Skipping content ${item.id} — live X posting is disabled`);
+            skippedIds.push(item.id);
+            continue;
           } else {
             // Real failure
             failureReason = result.error || "Unknown X posting error";
