@@ -87,8 +87,9 @@ export function useGenerateContent() {
 
       if (insertError) throw insertError;
 
-      // Score each post via quality gate (fire-and-forget)
+      // Generate images and score posts in parallel (fire-and-forget)
       for (const item of insertedContent || []) {
+        // Quality gate
         supabase.functions.invoke("quality-gate", {
           body: {
             content_id: item.id,
@@ -98,6 +99,16 @@ export function useGenerateContent() {
             user_id: user.id,
           },
         }).catch((err) => console.error("Quality gate error:", err));
+
+        // Generate post image
+        supabase.functions.invoke("generate-post-image", {
+          body: {
+            contentId: item.id,
+            contentText: item.content_text,
+            appName: app.name,
+            platform: item.platform,
+          },
+        }).catch((err) => console.error("Image generation error:", err));
       }
 
       // Update app posts count
