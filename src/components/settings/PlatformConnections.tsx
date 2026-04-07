@@ -116,16 +116,35 @@ export function PlatformConnections() {
     });
   };
 
-  // Deduplicate: show app-specific connection if exists, otherwise user-level
   const deduplicatedConnections = (() => {
-    if (!connections) return [];
-    const byPlatform = new Map<string, typeof connections[number]>();
-    for (const conn of connections) {
+    const allConnections = connections || [];
+    const byPlatform = new Map<string, typeof allConnections[number]>();
+    
+    // First add temp entries for all platforms as defaults
+    for (const platform of PLATFORMS) {
+      byPlatform.set(platform, {
+        id: `temp-${platform}`,
+        user_id: "",
+        platform: platform as Platform,
+        connected: false,
+        connected_at: null,
+        account_name: null,
+        account_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        expires_at: null,
+        scope: null,
+        app_id: selectedAppId || null,
+      });
+    }
+    
+    // Then override with real connections
+    for (const conn of allConnections) {
       const existing = byPlatform.get(conn.platform);
-      if (!existing) {
+      if (!existing || existing.id.startsWith("temp-")) {
         byPlatform.set(conn.platform, conn);
-      } else if (conn.app_id === selectedAppId && existing.app_id !== selectedAppId) {
-        // Prefer app-specific over user-level
+      }
+      if (conn.app_id === selectedAppId && existing && !existing.id.startsWith("temp-") && existing.app_id !== selectedAppId) {
         byPlatform.set(conn.platform, conn);
       }
     }
