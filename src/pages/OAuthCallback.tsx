@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,7 +12,6 @@ const platformLabels: Record<string, string> = {
 
 export default function OAuthCallback() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { user, loading } = useAuth();
 
   const platform = searchParams.get("platform") ?? searchParams.get("connected") ?? "platform";
@@ -59,7 +58,7 @@ export default function OAuthCallback() {
 
     if (status === "success" && user) {
       const timer = window.setTimeout(() => {
-        navigate(settingsTarget, { replace: true });
+        window.location.replace(settingsTarget);
       }, 1200);
 
       return () => window.clearTimeout(timer);
@@ -67,12 +66,12 @@ export default function OAuthCallback() {
 
     if (status === "error") {
       const timer = window.setTimeout(() => {
-        navigate(settingsTarget, { replace: true });
+        window.location.replace(settingsTarget);
       }, 2200);
 
       return () => window.clearTimeout(timer);
     }
-  }, [loading, navigate, settingsTarget, status, user]);
+  }, [loading, settingsTarget, status, user]);
 
   const isSuccess = status === "success";
   const isError = status === "error";
@@ -138,11 +137,11 @@ export default function OAuthCallback() {
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button className="flex-1" onClick={() => navigate(settingsTarget, { replace: true })}>
+          <Button className="flex-1" onClick={() => window.location.replace(settingsTarget)}>
             Go to Settings
           </Button>
           {needsSignIn && (
-            <Button className="flex-1" variant="outline" onClick={() => navigate("/auth", { replace: true })}>
+            <Button className="flex-1" variant="outline" onClick={() => window.location.replace("/auth")}>
               Sign In
             </Button>
           )}
