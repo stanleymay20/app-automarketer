@@ -502,6 +502,7 @@ export type Database = {
           access_token: string | null
           account_id: string | null
           account_name: string | null
+          app_id: string | null
           connected: boolean
           connected_at: string | null
           created_at: string
@@ -518,6 +519,7 @@ export type Database = {
           access_token?: string | null
           account_id?: string | null
           account_name?: string | null
+          app_id?: string | null
           connected?: boolean
           connected_at?: string | null
           created_at?: string
@@ -534,6 +536,7 @@ export type Database = {
           access_token?: string | null
           account_id?: string | null
           account_name?: string | null
+          app_id?: string | null
           connected?: boolean
           connected_at?: string | null
           created_at?: string
@@ -546,7 +549,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "platform_connections_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_settings: {
         Row: {
