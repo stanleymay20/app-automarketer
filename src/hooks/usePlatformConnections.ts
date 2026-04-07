@@ -98,25 +98,8 @@ export function useConnectPlatform() {
         return null;
       }
 
-      // Mock for other platforms (not yet implemented)
-      const mockAccountName = `@user_${Math.random().toString(36).substring(7)}`;
-      const mockAccountId = Math.random().toString(36).substring(2, 15);
-
-      const { data, error } = await supabase
-        .from("platform_connections")
-        .upsert({
-          user_id: user.id,
-          platform,
-          connected: true,
-          connected_at: new Date().toISOString(),
-          account_name: mockAccountName,
-          account_id: mockAccountId,
-        }, { onConflict: "user_id,platform" })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      // Other platforms not yet supported for real OAuth
+      throw new Error(`${platform.toUpperCase()} integration is coming soon. Only X (Twitter) is currently supported.`);
     },
     onSuccess: (data, platform) => {
       if (platform !== "x") {
