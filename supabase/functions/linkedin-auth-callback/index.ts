@@ -10,6 +10,24 @@ function buildRedirectUrl(appUrl: string, params: Record<string, string | null |
   return redirectUrl.toString();
 }
 
+function parseJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeLinkedInPersonId(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  return raw.replace(/^urn:li:person:/, "");
+}
+
 Deno.serve(async (req) => {
   let appUrl = PUBLISHED_APP_URL;
 
@@ -100,13 +118,14 @@ Deno.serve(async (req) => {
     const tokenData = await tokenResponse.json();
     const grantedScopes = new Set(
       String(tokenData.scope ?? "")
-        .split(/\s+/)
+        .split(/[\s,]+/)
         .map((scope: string) => scope.trim())
         .filter(Boolean),
     );
     console.log("[LinkedInCallback] Token exchange", JSON.stringify({
       status: tokenResponse.status,
       has_access_token: !!tokenData.access_token,
+      has_id_token: !!tokenData.id_token,
       scope: tokenData.scope ?? null,
     }));
 
@@ -117,76 +136,90 @@ Deno.serve(async (req) => {
       }), 302);
     }
 
-    // Fetch profile
     let accountName = "";
     let accountId = "";
 
-    const profileRequests = grantedScopes.has("openid")
-      ? [
-          {
-            label: "userinfo",
-            url: "https://api.linkedin.com/v2/userinfo",
-            extractProfile: (data: Record<string, string>) => ({
-              accountId: data.sub || "",
-              accountName:
-                data.name || `${data.given_name || ""} ${data.family_name || ""}`.trim(),
-            }),
-          },
-          {
-            label: "/v2/me",
-            url: "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
-            extractProfile: (data: Record<string, string>) => ({
-              accountId: data.id || "",
-              accountName:
-                `${data.localizedFirstName || ""} ${data.localizedLastName || ""}`.trim(),
-            }),
-          },
-        ]
-      : [
-          {
-            label: "/v2/me",
-            url: "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
-            extractProfile: (data: Record<string, string>) => ({
-              accountId: data.id || "",
-              accountName:
-                `${data.localizedFirstName || ""} ${data.localizedLastName || ""}`.trim(),
-            }),
-          },
-          {
-            label: "userinfo",
-            url: "https://api.linkedin.com/v2/userinfo",
-            extractProfile: (data: Record<string, string>) => ({
-              accountId: data.sub || "",
-              accountName:
-                data.name || `${data.given_name || ""} ${data.family_name || ""}`.trim(),
-            }),
-          },
-        ];
+    const idTokenClaims = typeof tokenData.id_token === "string"
+      ? parseJwtPayload(tokenData.id_token)
+      : null;
 
-    for (const profileRequest of profileRequests) {
-      const profileResponse = await fetch(profileRequest.url, {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-          "LinkedIn-Version": "202401",
-        },
-      });
+    if (idTokenClaims) {
+      accountId = normalizeLinkedInPersonId(idTokenClaims.sub);
+      accountName = typeof idTokenClaims.name === "string"
+        ? idTokenClaims.name
+        : `${String(idTokenClaims.given_name ?? "")} ${String(idTokenClaims.family_name ?? "")}`.trim();
 
-      if (!profileResponse.ok) {
-        const errorBody = await profileResponse.text();
-        console.warn(`[LinkedInCallback] ${profileRequest.label} failed`, JSON.stringify({
-          status: profileResponse.status,
-          body: errorBody,
-        }));
-        continue;
+      console.log("[LinkedInCallback] id_token profile", JSON.stringify({ accountId, accountName }));
+    }
+
+    if (!accountId) {
+      const profileRequests = grantedScopes.has("openid")
+        ? [
+            {
+              label: "userinfo",
+              url: "https://api.linkedin.com/v2/userinfo",
+              extractProfile: (data: Record<string, string>) => ({
+                accountId: normalizeLinkedInPersonId(data.sub),
+                accountName:
+                  data.name || `${data.given_name || ""} ${data.family_name || ""}`.trim(),
+              }),
+            },
+            {
+              label: "/v2/me",
+              url: "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
+              extractProfile: (data: Record<string, string>) => ({
+                accountId: normalizeLinkedInPersonId(data.id),
+                accountName:
+                  `${data.localizedFirstName || ""} ${data.localizedLastName || ""}`.trim(),
+              }),
+            },
+          ]
+        : [
+            {
+              label: "/v2/me",
+              url: "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
+              extractProfile: (data: Record<string, string>) => ({
+                accountId: normalizeLinkedInPersonId(data.id),
+                accountName:
+                  `${data.localizedFirstName || ""} ${data.localizedLastName || ""}`.trim(),
+              }),
+            },
+            {
+              label: "userinfo",
+              url: "https://api.linkedin.com/v2/userinfo",
+              extractProfile: (data: Record<string, string>) => ({
+                accountId: normalizeLinkedInPersonId(data.sub),
+                accountName:
+                  data.name || `${data.given_name || ""} ${data.family_name || ""}`.trim(),
+              }),
+            },
+          ];
+
+      for (const profileRequest of profileRequests) {
+        const profileResponse = await fetch(profileRequest.url, {
+          headers: {
+            Authorization: `Bearer ${tokenData.access_token}`,
+            "X-Restli-Protocol-Version": "2.0.0",
+          },
+        });
+
+        if (!profileResponse.ok) {
+          const errorBody = await profileResponse.text();
+          console.warn(`[LinkedInCallback] ${profileRequest.label} failed`, JSON.stringify({
+            status: profileResponse.status,
+            body: errorBody,
+          }));
+          continue;
+        }
+
+        const profileData = await profileResponse.json();
+        const extracted = profileRequest.extractProfile(profileData);
+        accountId = extracted.accountId;
+        accountName = extracted.accountName;
+        console.log(`[LinkedInCallback] ${profileRequest.label} profile`, JSON.stringify({ accountId, accountName }));
+
+        if (accountId) break;
       }
-
-      const profileData = await profileResponse.json();
-      const extracted = profileRequest.extractProfile(profileData);
-      accountId = extracted.accountId;
-      accountName = extracted.accountName;
-      console.log(`[LinkedInCallback] ${profileRequest.label} profile`, JSON.stringify({ accountId, accountName }));
-
-      if (accountId) break;
     }
 
     if (!accountId) {
