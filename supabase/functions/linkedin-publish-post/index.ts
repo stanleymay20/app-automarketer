@@ -70,9 +70,11 @@ Deno.serve(async (req) => {
     }
 
     // Get LinkedIn connection (app-specific first, then user-level fallback)
+    console.log(`[LinkedInPublish] Looking up connection for user=${user.id} app=${contentItem.app_id}`);
+
     const { data: appConn } = await supabase
       .from("platform_connections")
-      .select("id, access_token, expires_at, account_name, account_id")
+      .select("id, access_token, expires_at, account_name, account_id, connected")
       .eq("user_id", user.id)
       .eq("platform", "linkedin")
       .eq("connected", true)
@@ -83,7 +85,7 @@ Deno.serve(async (req) => {
     if (!connection) {
       const { data: userConn } = await supabase
         .from("platform_connections")
-        .select("id, access_token, expires_at, account_name, account_id")
+        .select("id, access_token, expires_at, account_name, account_id, connected")
         .eq("user_id", user.id)
         .eq("platform", "linkedin")
         .eq("connected", true)
@@ -92,113 +94,125 @@ Deno.serve(async (req) => {
       connection = userConn;
     }
 
+    console.log(`[LinkedInPublish] Connection found: ${!!connection} | id=${connection?.id} | account_id=${connection?.account_id} | account_name=${connection?.account_name} | has_token=${!!connection?.access_token}`);
+
     if (!connection || !connection.access_token) {
       return new Response(JSON.stringify({ error: "LinkedIn not connected or missing token" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check token expiry — LinkedIn tokens last 60 days, no refresh token available.
-    // If expired, user must reconnect.
+    // Check account_id — required to construct author URN
+    if (!connection.account_id) {
+      console.error(`[LinkedInPublish] BLOCKED: account_id is empty. Cannot construct author URN.`);
+      return new Response(JSON.stringify({
+        error: "LinkedIn account_id is missing. Please disconnect and reconnect LinkedIn in Settings. If this persists, the 'Sign In with LinkedIn using OpenID Connect' product may be required.",
+        action: "reconnect",
+      }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check token expiry — no refresh token available
     if (connection.expires_at) {
       const expiresAt = new Date(connection.expires_at);
       if (expiresAt < new Date()) {
-        // Mark connection as disconnected so UI shows "Needs Reconnect"
-        await supabase.from("platform_connections").update({
-          connected: false,
-        }).eq("id", connection.id);
-
+        await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
         return new Response(JSON.stringify({
           error: "LinkedIn token expired. Please reconnect your LinkedIn account in Settings.",
           action: "reconnect",
-        }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
     const accessToken = connection.access_token;
-
-    // Use the LinkedIn Posts API (Community Management API).
-    // The author URN uses the member ID from /v2/me.
     const authorUrn = `urn:li:person:${connection.account_id}`;
 
-    console.log(`[LinkedIn] Publishing post | user=${user.id} content=${content_id} author=${authorUrn}`);
+    console.log(`[LinkedInPublish] Publishing | content=${content_id} | author=${authorUrn}`);
 
-    // LinkedIn Posts API (/rest/posts) — preferred over deprecated ugcPosts
-    const postResponse = await fetch("https://api.linkedin.com/rest/posts", {
+    // ── Primary: POST /v2/ugcPosts (documented for Share on LinkedIn self-serve) ──
+    const ugcBody = {
+      author: authorUrn,
+      lifecycleState: "PUBLISHED",
+      specificContent: {
+        "com.linkedin.ugc.ShareContent": {
+          shareCommentary: { text: contentItem.content_text },
+          shareMediaCategory: "NONE",
+        },
+      },
+      visibility: {
+        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+      },
+    };
+
+    console.log(`[LinkedInPublish] POST /v2/ugcPosts ...`);
+
+    const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        "LinkedIn-Version": "202401",
         "X-Restli-Protocol-Version": "2.0.0",
       },
-      body: JSON.stringify({
-        author: authorUrn,
-        commentary: contentItem.content_text,
-        visibility: "PUBLIC",
-        distribution: {
-          feedDistribution: "MAIN_FEED",
-          targetEntities: [],
-          thirdPartyDistributionChannels: [],
-        },
-        lifecycleState: "PUBLISHED",
-      }),
+      body: JSON.stringify(ugcBody),
     });
 
-    // LinkedIn Posts API returns 201 with the post URN in the x-restli-id header
+    const postBody = await postResponse.text();
+    console.log(`[LinkedInPublish] /v2/ugcPosts response status: ${postResponse.status}`);
+    console.log(`[LinkedInPublish] /v2/ugcPosts response body: ${postBody}`);
+    console.log(`[LinkedInPublish] /v2/ugcPosts x-restli-id: ${postResponse.headers.get("x-restli-id")}`);
+
     if (!postResponse.ok) {
-      const postData = await postResponse.text();
       let errorDetail: string;
       try {
-        const parsed = JSON.parse(postData);
-        errorDetail = parsed.message || parsed.code || postData;
+        const parsed = JSON.parse(postBody);
+        errorDetail = parsed.message || parsed.serviceErrorCode || postBody;
       } catch {
-        errorDetail = postData;
+        errorDetail = postBody;
       }
-      const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
+      const failureReason = `LinkedIn ugcPosts API ${postResponse.status}: ${errorDetail}`;
 
       await supabase.from("content").update({
         status: "failed",
         failure_reason: failureReason,
       }).eq("id", content_id).eq("status", "approved");
 
-      console.error(`[LinkedIn] Publish failed | content=${content_id}: ${failureReason}`);
+      console.error(`[LinkedInPublish] FAILED | content=${content_id}: ${failureReason}`);
 
       return new Response(JSON.stringify({ error: failureReason }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // The post ID comes from the x-restli-id header or response body
-    const restliId = postResponse.headers.get("x-restli-id") || "";
-    // Consume response body
-    await postResponse.text();
+    // Success — extract post ID
+    let postId = "";
+    try {
+      const parsed = JSON.parse(postBody);
+      postId = parsed.id || postResponse.headers.get("x-restli-id") || "";
+    } catch {
+      postId = postResponse.headers.get("x-restli-id") || "";
+    }
 
-    const postUrn = restliId || "";
-    const postUrl = postUrn
-      ? `https://www.linkedin.com/feed/update/${postUrn}`
-      : "";
+    const postUrl = postId ? `https://www.linkedin.com/feed/update/${postId}` : "";
 
     await supabase.from("content").update({
       status: "published",
       published_at: new Date().toISOString(),
-      external_post_id: postUrn,
+      external_post_id: postId,
       external_url: postUrl,
     }).eq("id", content_id).eq("status", "approved").is("published_at", null);
 
-    console.log(`[LinkedIn] Published | content=${content_id} post=${postUrn}`);
+    console.log(`[LinkedInPublish] SUCCESS | content=${content_id} | post_id=${postId} | url=${postUrl}`);
 
     return new Response(JSON.stringify({
       success: true,
-      post_id: postUrn,
+      post_id: postId,
       post_url: postUrl,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("[LinkedIn] Error:", error);
+    console.error("[LinkedInPublish] Unhandled error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
