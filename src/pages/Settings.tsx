@@ -58,27 +58,19 @@ export default function Settings() {
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
-          <Card className="shadow-card">
+           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="font-display">Profile Settings</CardTitle>
-              <CardDescription>Manage your account information.</CardDescription>
+              <CardDescription>Your account information.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" placeholder="John Doe" />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" />
+                  <Input id="email" type="email" value={user?.email || ""} disabled className="bg-muted" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Company Name</Label>
-                <Input id="company" placeholder="Acme Inc." />
-              </div>
-              <Button disabled>Save Changes (Coming Soon)</Button>
+              <p className="text-xs text-muted-foreground">Contact support to update your email address.</p>
             </CardContent>
           </Card>
 
