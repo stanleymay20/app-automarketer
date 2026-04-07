@@ -21,7 +21,6 @@ export interface PlatformConnection {
 }
 
 const PLATFORMS: Platform[] = ["x", "linkedin", "instagram", "facebook"];
-const PUBLISHED_APP_ORIGIN = "https://app-automarketer.lovable.app";
 
 export function usePlatformConnections(appId?: string) {
   const { user } = useAuth();
@@ -107,21 +106,27 @@ export function useConnectPlatform() {
         if (!result.url) throw new Error("Provider did not return an authorization URL");
 
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isEmbedded = window.self !== window.top;
         console.info("[OAuthStart] Launching provider", {
           platform,
           appId: appId || null,
           origin: window.location.origin,
-          mode: isMobile ? "same-window" : "popup",
+          mode: isMobile || isEmbedded ? "top-window" : "popup",
+          isEmbedded,
         });
 
-        if (isMobile) {
-          window.location.href = result.url;
+        if (isMobile || isEmbedded) {
+          try {
+            window.top?.location.assign(result.url);
+          } catch {
+            window.location.assign(result.url);
+          }
           return null;
         }
 
         const authWindow = window.open(result.url, "_blank", "noopener,noreferrer");
         if (!authWindow) {
-          window.location.href = result.url;
+          window.location.assign(result.url);
         }
         return null;
       }
