@@ -82,11 +82,21 @@ export function PlatformConnections() {
     disconnectedPlatforms.has(c.platform as Platform)
   );
 
-  if (isLoading) {
+  if (isLoading || !apps) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <p className="text-sm text-muted-foreground">Failed to load platform connections. Please refresh.</p>
         </CardContent>
       </Card>
     );
