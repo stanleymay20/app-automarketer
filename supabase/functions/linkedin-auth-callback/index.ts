@@ -165,7 +165,10 @@ Deno.serve(async (req) => {
 
     for (const profileRequest of profileRequests) {
       const profileResponse = await fetch(profileRequest.url, {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          "LinkedIn-Version": "202401",
+        },
       });
 
       if (!profileResponse.ok) {
