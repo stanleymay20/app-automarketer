@@ -122,7 +122,7 @@ export function PlatformConnections() {
     const byPlatform = new Map<string, typeof allConnections[number]>();
     
     // First add temp entries for all platforms as defaults
-    for (const platform of PLATFORMS) {
+    for (const platform of ALL_PLATFORMS) {
       byPlatform.set(platform, {
         id: `temp-${platform}`,
         user_id: "",
