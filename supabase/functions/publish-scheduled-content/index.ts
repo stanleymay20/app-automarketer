@@ -260,6 +260,102 @@ Deno.serve(async (req) => {
             errors.push({ id: item.id, error: failureReason });
             continue;
           }
+        } else if (item.platform === "linkedin") {
+          // LinkedIn publishing
+          const linkedInClientId = Deno.env.get("LINKEDIN_CLIENT_ID");
+          const linkedInClientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
+
+          // Get LinkedIn connection
+          const { data: liAppConn } = await supabase
+            .from("platform_connections")
+            .select("id, access_token, refresh_token, expires_at, account_name, account_id")
+            .eq("user_id", item.user_id)
+            .eq("platform", "linkedin")
+            .eq("connected", true)
+            .eq("app_id", item.app_id)
+            .single();
+
+          let liConnection = liAppConn;
+          if (!liConnection) {
+            const { data: liUserConn } = await supabase
+              .from("platform_connections")
+              .select("id, access_token, refresh_token, expires_at, account_name, account_id")
+              .eq("user_id", item.user_id)
+              .eq("platform", "linkedin")
+              .eq("connected", true)
+              .is("app_id", null)
+              .single();
+            liConnection = liUserConn;
+          }
+
+          if (!liConnection || !liConnection.access_token) {
+            console.log(`[Publisher] No LinkedIn connection for user ${item.user_id} | content=${item.id}`);
+            skippedIds.push(item.id);
+            continue;
+          }
+
+          // Refresh if needed
+          let liAccessToken = liConnection.access_token;
+          if (liConnection.expires_at && new Date(liConnection.expires_at) < new Date(Date.now() + 5 * 60 * 1000) && liConnection.refresh_token && linkedInClientId && linkedInClientSecret) {
+            const resp = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: liConnection.refresh_token,
+                client_id: linkedInClientId,
+                client_secret: linkedInClientSecret,
+              }),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+              liAccessToken = data.access_token;
+              await supabase.from("platform_connections").update({
+                access_token: data.access_token,
+                refresh_token: data.refresh_token || liConnection.refresh_token,
+                expires_at: new Date(Date.now() + (data.expires_in || 5184000) * 1000).toISOString(),
+              }).eq("id", liConnection.id);
+            } else {
+              await supabase.from("content").update({ status: "failed", failure_reason: "LinkedIn token refresh failed" }).eq("id", item.id).eq("status", "approved");
+              errors.push({ id: item.id, error: "LinkedIn token refresh failed" });
+              continue;
+            }
+          }
+
+          const authorUrn = `urn:li:person:${liConnection.account_id}`;
+          const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${liAccessToken}`,
+              "Content-Type": "application/json",
+              "X-Restli-Protocol-Version": "2.0.0",
+            },
+            body: JSON.stringify({
+              author: authorUrn,
+              lifecycleState: "PUBLISHED",
+              specificContent: {
+                "com.linkedin.ugc.ShareContent": {
+                  shareCommentary: { text: item.content_text },
+                  shareMediaCategory: "NONE",
+                },
+              },
+              visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+            }),
+          });
+
+          const postData = await postResponse.json();
+
+          if (!postResponse.ok) {
+            const errorDetail = postData.message || JSON.stringify(postData);
+            const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
+            await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", item.id).eq("status", "approved");
+            errors.push({ id: item.id, error: failureReason });
+            continue;
+          }
+
+          const postId = postData.id || "";
+          externalPostId = postId.replace("urn:li:ugcPost:", "").replace("urn:li:share:", "");
+          externalUrl = `https://www.linkedin.com/feed/update/${postId}`;
         } else {
           console.log(`[Publisher] Skipping content ${item.id} — no real API for ${item.platform} yet`);
           skippedIds.push(item.id);
