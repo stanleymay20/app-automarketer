@@ -21,6 +21,7 @@ export interface PlatformConnection {
 }
 
 const PLATFORMS: Platform[] = ["x", "linkedin", "instagram", "facebook"];
+const PUBLISHED_APP_ORIGIN = "https://app-automarketer.lovable.app";
 
 export function usePlatformConnections(appId?: string) {
   const { user } = useAuth();
