@@ -6,18 +6,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// LinkedIn does NOT provide refresh tokens without specific product approval.
+// This endpoint exists as a placeholder but will return a clear error
+// instructing the user to reconnect manually when their token expires.
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
-    const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
-    if (!clientId || !clientSecret) {
-      throw new Error("LinkedIn credentials not configured");
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -59,9 +57,32 @@ Deno.serve(async (req) => {
       .eq("platform", "linkedin")
       .single();
 
-    if (!connection || !connection.refresh_token) {
-      return new Response(JSON.stringify({ error: "No refresh token available. Please reconnect." }), {
+    if (!connection) {
+      return new Response(JSON.stringify({ error: "LinkedIn connection not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // LinkedIn standard apps do not receive refresh tokens.
+    // The only way to get a new access token is to re-authorize via OAuth.
+    if (!connection.refresh_token) {
+      return new Response(JSON.stringify({
+        error: "no_refresh_token",
+        message: "LinkedIn does not provide refresh tokens for this app. Please reconnect your LinkedIn account.",
+        action: "reconnect",
+      }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If a refresh token somehow exists (future product upgrade), attempt refresh
+    const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
+    const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
+    if (!clientId || !clientSecret) {
+      return new Response(JSON.stringify({ error: "LinkedIn credentials not configured" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -81,7 +102,11 @@ Deno.serve(async (req) => {
 
     if (!tokenResponse.ok) {
       console.error("LinkedIn token refresh failed:", tokenData);
-      return new Response(JSON.stringify({ error: "Token refresh failed. Please reconnect." }), {
+      return new Response(JSON.stringify({
+        error: "refresh_failed",
+        message: "Token refresh failed. Please reconnect your LinkedIn account.",
+        action: "reconnect",
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -95,8 +120,6 @@ Deno.serve(async (req) => {
       expires_at: expiresAt,
       token_type: tokenData.token_type || "Bearer",
     }).eq("id", connection.id);
-
-    console.log(`LinkedIn token refreshed for user ${user.id}`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

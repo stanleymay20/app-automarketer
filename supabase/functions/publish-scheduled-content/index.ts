@@ -261,14 +261,12 @@ Deno.serve(async (req) => {
             continue;
           }
         } else if (item.platform === "linkedin") {
-          // LinkedIn publishing
-          const linkedInClientId = Deno.env.get("LINKEDIN_CLIENT_ID");
-          const linkedInClientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
+          // LinkedIn publishing — no refresh token available
 
           // Get LinkedIn connection
           const { data: liAppConn } = await supabase
             .from("platform_connections")
-            .select("id, access_token, refresh_token, expires_at, account_name, account_id")
+            .select("id, access_token, expires_at, account_name, account_id")
             .eq("user_id", item.user_id)
             .eq("platform", "linkedin")
             .eq("connected", true)
@@ -279,7 +277,7 @@ Deno.serve(async (req) => {
           if (!liConnection) {
             const { data: liUserConn } = await supabase
               .from("platform_connections")
-              .select("id, access_token, refresh_token, expires_at, account_name, account_id")
+              .select("id, access_token, expires_at, account_name, account_id")
               .eq("user_id", item.user_id)
               .eq("platform", "linkedin")
               .eq("connected", true)
@@ -294,68 +292,55 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Refresh if needed
-          let liAccessToken = liConnection.access_token;
-          if (liConnection.expires_at && new Date(liConnection.expires_at) < new Date(Date.now() + 5 * 60 * 1000) && liConnection.refresh_token && linkedInClientId && linkedInClientSecret) {
-            const resp = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: new URLSearchParams({
-                grant_type: "refresh_token",
-                refresh_token: liConnection.refresh_token,
-                client_id: linkedInClientId,
-                client_secret: linkedInClientSecret,
-              }),
-            });
-            const data = await resp.json();
-            if (resp.ok) {
-              liAccessToken = data.access_token;
-              await supabase.from("platform_connections").update({
-                access_token: data.access_token,
-                refresh_token: data.refresh_token || liConnection.refresh_token,
-                expires_at: new Date(Date.now() + (data.expires_in || 5184000) * 1000).toISOString(),
-              }).eq("id", liConnection.id);
-            } else {
-              await supabase.from("content").update({ status: "failed", failure_reason: "LinkedIn token refresh failed" }).eq("id", item.id).eq("status", "approved");
-              errors.push({ id: item.id, error: "LinkedIn token refresh failed" });
-              continue;
-            }
+          // Check token expiry — no refresh possible
+          if (liConnection.expires_at && new Date(liConnection.expires_at) < new Date()) {
+            await supabase.from("platform_connections").update({ connected: false }).eq("id", liConnection.id);
+            await supabase.from("content").update({
+              status: "failed",
+              failure_reason: "LinkedIn token expired. User must reconnect.",
+            }).eq("id", item.id).eq("status", "approved");
+            errors.push({ id: item.id, error: "LinkedIn token expired" });
+            continue;
           }
 
           const authorUrn = `urn:li:person:${liConnection.account_id}`;
-          const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+
+          // Use LinkedIn Posts API (/rest/posts)
+          const postResponse = await fetch("https://api.linkedin.com/rest/posts", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${liAccessToken}`,
+              Authorization: `Bearer ${liConnection.access_token}`,
               "Content-Type": "application/json",
+              "LinkedIn-Version": "202401",
               "X-Restli-Protocol-Version": "2.0.0",
             },
             body: JSON.stringify({
               author: authorUrn,
-              lifecycleState: "PUBLISHED",
-              specificContent: {
-                "com.linkedin.ugc.ShareContent": {
-                  shareCommentary: { text: item.content_text },
-                  shareMediaCategory: "NONE",
-                },
+              commentary: item.content_text,
+              visibility: "PUBLIC",
+              distribution: {
+                feedDistribution: "MAIN_FEED",
+                targetEntities: [],
+                thirdPartyDistributionChannels: [],
               },
-              visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+              lifecycleState: "PUBLISHED",
             }),
           });
 
-          const postData = await postResponse.json();
-
           if (!postResponse.ok) {
-            const errorDetail = postData.message || JSON.stringify(postData);
+            const postData = await postResponse.text();
+            let errorDetail: string;
+            try { errorDetail = JSON.parse(postData).message || postData; } catch { errorDetail = postData; }
             const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
             await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", item.id).eq("status", "approved");
             errors.push({ id: item.id, error: failureReason });
             continue;
           }
 
-          const postId = postData.id || "";
-          externalPostId = postId.replace("urn:li:ugcPost:", "").replace("urn:li:share:", "");
-          externalUrl = `https://www.linkedin.com/feed/update/${postId}`;
+          const restliId = postResponse.headers.get("x-restli-id") || "";
+          await postResponse.text();
+          externalPostId = restliId;
+          externalUrl = restliId ? `https://www.linkedin.com/feed/update/${restliId}` : "";
         } else {
           console.log(`[Publisher] Skipping content ${item.id} — no real API for ${item.platform} yet`);
           skippedIds.push(item.id);

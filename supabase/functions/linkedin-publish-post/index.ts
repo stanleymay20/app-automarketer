@@ -6,39 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function refreshLinkedInToken(
-  supabase: ReturnType<typeof createClient>,
-  connection: { id: string; refresh_token: string }
-): Promise<{ access_token: string } | null> {
-  const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
-  const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
-  if (!clientId || !clientSecret) return null;
-
-  const response = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: connection.refresh_token,
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) return null;
-
-  const expiresAt = new Date(Date.now() + (data.expires_in || 5184000) * 1000).toISOString();
-  await supabase.from("platform_connections").update({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token || connection.refresh_token,
-    expires_at: expiresAt,
-    token_type: data.token_type || "Bearer",
-  }).eq("id", connection.id);
-
-  return { access_token: data.access_token };
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -105,7 +72,7 @@ Deno.serve(async (req) => {
     // Get LinkedIn connection (app-specific first, then user-level fallback)
     const { data: appConn } = await supabase
       .from("platform_connections")
-      .select("id, access_token, refresh_token, expires_at, account_name, account_id")
+      .select("id, access_token, expires_at, account_name, account_id")
       .eq("user_id", user.id)
       .eq("platform", "linkedin")
       .eq("connected", true)
@@ -116,7 +83,7 @@ Deno.serve(async (req) => {
     if (!connection) {
       const { data: userConn } = await supabase
         .from("platform_connections")
-        .select("id, access_token, refresh_token, expires_at, account_name, account_id")
+        .select("id, access_token, expires_at, account_name, account_id")
         .eq("user_id", user.id)
         .eq("platform", "linkedin")
         .eq("connected", true)
@@ -131,60 +98,65 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Refresh token if expiring soon
-    let accessToken = connection.access_token;
+    // Check token expiry — LinkedIn tokens last 60 days, no refresh token available.
+    // If expired, user must reconnect.
     if (connection.expires_at) {
       const expiresAt = new Date(connection.expires_at);
-      if (expiresAt < new Date(Date.now() + 5 * 60 * 1000) && connection.refresh_token) {
-        const refreshed = await refreshLinkedInToken(supabase, {
-          id: connection.id,
-          refresh_token: connection.refresh_token,
+      if (expiresAt < new Date()) {
+        // Mark connection as disconnected so UI shows "Needs Reconnect"
+        await supabase.from("platform_connections").update({
+          connected: false,
+        }).eq("id", connection.id);
+
+        return new Response(JSON.stringify({
+          error: "LinkedIn token expired. Please reconnect your LinkedIn account in Settings.",
+          action: "reconnect",
+        }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-        if (refreshed) {
-          accessToken = refreshed.access_token;
-        } else {
-          return new Response(JSON.stringify({ error: "LinkedIn token expired and refresh failed" }), {
-            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
       }
     }
 
-    // The account_id from LinkedIn OIDC is the `sub` claim (a member URN like a numeric string)
-    // LinkedIn API v2 requires the author in URN format
+    const accessToken = connection.access_token;
+
+    // Use the LinkedIn Posts API (Community Management API).
+    // The author URN uses the member ID from /v2/me.
     const authorUrn = `urn:li:person:${connection.account_id}`;
 
-    console.log(`[LinkedIn] Publishing post for user ${user.id} | content=${content_id} author=${authorUrn}`);
+    console.log(`[LinkedIn] Publishing post | user=${user.id} content=${content_id} author=${authorUrn}`);
 
-    // LinkedIn Posts API (v2)
-    const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+    // LinkedIn Posts API (/rest/posts) — preferred over deprecated ugcPosts
+    const postResponse = await fetch("https://api.linkedin.com/rest/posts", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "LinkedIn-Version": "202401",
         "X-Restli-Protocol-Version": "2.0.0",
       },
       body: JSON.stringify({
         author: authorUrn,
+        commentary: contentItem.content_text,
+        visibility: "PUBLIC",
+        distribution: {
+          feedDistribution: "MAIN_FEED",
+          targetEntities: [],
+          thirdPartyDistributionChannels: [],
+        },
         lifecycleState: "PUBLISHED",
-        specificContent: {
-          "com.linkedin.ugc.ShareContent": {
-            shareCommentary: {
-              text: contentItem.content_text,
-            },
-            shareMediaCategory: "NONE",
-          },
-        },
-        visibility: {
-          "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-        },
       }),
     });
 
-    const postData = await postResponse.json();
-
+    // LinkedIn Posts API returns 201 with the post URN in the x-restli-id header
     if (!postResponse.ok) {
-      const errorDetail = postData.message || postData.serviceErrorCode || JSON.stringify(postData);
+      const postData = await postResponse.text();
+      let errorDetail: string;
+      try {
+        const parsed = JSON.parse(postData);
+        errorDetail = parsed.message || parsed.code || postData;
+      } catch {
+        errorDetail = postData;
+      }
       const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
 
       await supabase.from("content").update({
@@ -199,23 +171,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // postData.id is the URN of the post, e.g. "urn:li:ugcPost:1234567890"
-    const postId = postData.id || "";
-    const postIdNumeric = postId.replace("urn:li:ugcPost:", "").replace("urn:li:share:", "");
-    const postUrl = `https://www.linkedin.com/feed/update/${postId}`;
+    // The post ID comes from the x-restli-id header or response body
+    const restliId = postResponse.headers.get("x-restli-id") || "";
+    // Consume response body
+    await postResponse.text();
+
+    const postUrn = restliId || "";
+    const postUrl = postUrn
+      ? `https://www.linkedin.com/feed/update/${postUrn}`
+      : "";
 
     await supabase.from("content").update({
       status: "published",
       published_at: new Date().toISOString(),
-      external_post_id: postIdNumeric,
+      external_post_id: postUrn,
       external_url: postUrl,
     }).eq("id", content_id).eq("status", "approved").is("published_at", null);
 
-    console.log(`[LinkedIn] Published | content=${content_id} post=${postId}`);
+    console.log(`[LinkedIn] Published | content=${content_id} post=${postUrn}`);
 
     return new Response(JSON.stringify({
       success: true,
-      post_id: postId,
+      post_id: postUrn,
       post_url: postUrl,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

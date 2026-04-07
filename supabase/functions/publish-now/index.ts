@@ -152,6 +152,17 @@ Deno.serve(async (req) => {
     let accessToken = connection.access_token;
     if (connection.expires_at) {
       const expiresAt = new Date(connection.expires_at);
+      if (expiresAt < new Date()) {
+        // Token fully expired
+        if (normalizedPlatform === "linkedin") {
+          // LinkedIn has no refresh tokens — must reconnect
+          await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
+          return new Response(JSON.stringify({
+            error: "LinkedIn token expired. Please reconnect your LinkedIn account in Settings.",
+            action: "reconnect",
+          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
       if (expiresAt < new Date(Date.now() + 5 * 60 * 1000) && connection.refresh_token) {
         if (normalizedPlatform === "x") {
           const refreshed = await refreshXToken(supabase, {
@@ -161,35 +172,8 @@ Deno.serve(async (req) => {
           else return new Response(JSON.stringify({ error: "Token expired and refresh failed" }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
-        } else if (normalizedPlatform === "linkedin") {
-          const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
-          const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
-          if (clientId && clientSecret) {
-            const resp = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: new URLSearchParams({
-                grant_type: "refresh_token",
-                refresh_token: connection.refresh_token,
-                client_id: clientId,
-                client_secret: clientSecret,
-              }),
-            });
-            const data = await resp.json();
-            if (resp.ok) {
-              accessToken = data.access_token;
-              await supabase.from("platform_connections").update({
-                access_token: data.access_token,
-                refresh_token: data.refresh_token || connection.refresh_token,
-                expires_at: new Date(Date.now() + (data.expires_in || 5184000) * 1000).toISOString(),
-              }).eq("id", connection.id);
-            } else {
-              return new Response(JSON.stringify({ error: "LinkedIn token expired and refresh failed" }), {
-                status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
-          }
         }
+        // LinkedIn: no refresh token path — handled by expiry check above
       }
     }
 
@@ -226,30 +210,32 @@ Deno.serve(async (req) => {
       const authorUrn = `urn:li:person:${connection.account_id}`;
       console.log(`[ManualPublish] Posting to LinkedIn for user ${userId} | content=${content_id} author=${authorUrn}`);
 
-      const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+      // Use LinkedIn Posts API (/rest/posts)
+      const postResponse = await fetch("https://api.linkedin.com/rest/posts", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          "LinkedIn-Version": "202401",
           "X-Restli-Protocol-Version": "2.0.0",
         },
         body: JSON.stringify({
           author: authorUrn,
-          lifecycleState: "PUBLISHED",
-          specificContent: {
-            "com.linkedin.ugc.ShareContent": {
-              shareCommentary: { text: contentItem.content_text },
-              shareMediaCategory: "NONE",
-            },
+          commentary: contentItem.content_text,
+          visibility: "PUBLIC",
+          distribution: {
+            feedDistribution: "MAIN_FEED",
+            targetEntities: [],
+            thirdPartyDistributionChannels: [],
           },
-          visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+          lifecycleState: "PUBLISHED",
         }),
       });
 
-      const postData = await postResponse.json();
-
       if (!postResponse.ok) {
-        const errorDetail = postData.message || postData.serviceErrorCode || JSON.stringify(postData);
+        const postData = await postResponse.text();
+        let errorDetail: string;
+        try { errorDetail = JSON.parse(postData).message || postData; } catch { errorDetail = postData; }
         const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
         await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", content_id).eq("status", "approved");
         return new Response(JSON.stringify({ error: failureReason }), {
@@ -257,9 +243,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      const postId = postData.id || "";
-      externalPostId = postId.replace("urn:li:ugcPost:", "").replace("urn:li:share:", "");
-      externalUrl = `https://www.linkedin.com/feed/update/${postId}`;
+      const restliId = postResponse.headers.get("x-restli-id") || "";
+      await postResponse.text();
+      externalPostId = restliId;
+      externalUrl = restliId ? `https://www.linkedin.com/feed/update/${restliId}` : "";
     }
 
     // Update content

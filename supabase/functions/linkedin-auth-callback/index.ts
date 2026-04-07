@@ -85,26 +85,40 @@ Deno.serve(async (req) => {
       return Response.redirect(`${appUrl}/settings?tab=platforms&error=token_exchange_failed`, 302);
     }
 
-    // Fetch user profile via OpenID Connect userinfo endpoint
-    const profileResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    // Without OIDC, we cannot use /v2/userinfo.
+    // Use /v2/me (LinkedIn Profile API) to get the member's ID and name.
+    // The w_member_social scope grants access to /v2/me for the authorized member.
+    const profileResponse = await fetch(
+      "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)",
+      {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      }
+    );
 
-    const profileData = await profileResponse.json();
+    let accountName = "LinkedIn User";
+    let accountId = "";
 
-    if (!profileResponse.ok) {
-      console.error("LinkedIn profile fetch failed:", profileData);
-      return Response.redirect(`${appUrl}/settings?tab=platforms&error=profile_fetch_failed`, 302);
+    if (profileResponse.ok) {
+      const profileData = await profileResponse.json();
+      accountId = profileData.id; // This is the LinkedIn member ID (e.g., "dBsV0x1234")
+      const firstName = profileData.localizedFirstName || "";
+      const lastName = profileData.localizedLastName || "";
+      accountName = `${firstName} ${lastName}`.trim() || "LinkedIn User";
+      console.log(`LinkedIn profile fetched: id=${accountId} name=${accountName}`);
+    } else {
+      // If /v2/me fails, we can still store the connection.
+      // The access token itself can be introspected later, or
+      // we use the token to post — account_id will be derived at post time.
+      console.warn("LinkedIn /v2/me failed, storing connection without profile data");
+      const errorBody = await profileResponse.text();
+      console.warn(`/v2/me response [${profileResponse.status}]: ${errorBody}`);
     }
 
-    const accountName = profileData.name || `${profileData.given_name || ""} ${profileData.family_name || ""}`.trim();
-    const accountId = profileData.sub; // OpenID subject = LinkedIn member URN
-
-    // LinkedIn access tokens expire in 60 days (5184000 seconds)
+    // LinkedIn access tokens expire in 60 days (5184000s) by default.
+    // LinkedIn does NOT return refresh_token without specific product approval.
     const expiresIn = tokenData.expires_in || 5184000;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // Store tokens
     const upsertData: Record<string, unknown> = {
       user_id: userId,
       platform: "linkedin",
@@ -114,10 +128,11 @@ Deno.serve(async (req) => {
       account_name: accountName,
       account_id: accountId,
       access_token: tokenData.access_token,
+      // Do NOT assume refresh_token exists — only store if LinkedIn actually returns one
       refresh_token: tokenData.refresh_token || null,
       expires_at: expiresAt,
       token_type: tokenData.token_type || "Bearer",
-      scope: tokenData.scope || "openid profile email w_member_social",
+      scope: tokenData.scope || "w_member_social",
     };
 
     await serviceClient.from("platform_connections").upsert(
@@ -125,7 +140,7 @@ Deno.serve(async (req) => {
       { onConflict: "user_id,platform,app_id" }
     );
 
-    console.log(`LinkedIn OAuth connected for user ${userId} app ${appId}: ${accountName} (sub=${accountId})`);
+    console.log(`LinkedIn OAuth connected for user ${userId} app ${appId}: ${accountName} (id=${accountId})`);
 
     const redirectParams = new URLSearchParams({ tab: "platforms", connected: "linkedin" });
     if (appId) redirectParams.set("app_id", appId);

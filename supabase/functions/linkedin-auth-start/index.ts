@@ -74,17 +74,14 @@ Deno.serve(async (req) => {
         access_token: null,
         refresh_token: null,
         token_type: null,
-        scope: state, // temporary state storage
+        scope: state,
       },
       { onConflict: "user_id,platform,app_id" }
     );
 
-    // LinkedIn OAuth 2.0 scopes:
-    // - openid: required for OIDC
-    // - profile: access to name, photo
-    // - email: access to email
-    // - w_member_social: write posts on behalf of the user
-    const scopes = "openid profile email w_member_social";
+    // Only request w_member_social — the only product provisioned on this app.
+    // Do NOT request openid, profile, or email without the OIDC product.
+    const scopes = "w_member_social";
 
     const statePayload = appId ? `${state}:${userId}:${appId}` : `${state}:${userId}`;
 
