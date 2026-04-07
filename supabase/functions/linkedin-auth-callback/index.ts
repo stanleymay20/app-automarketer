@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
         platform: "linkedin",
         status: "error",
         error: "missing_account_id",
-        error_description: "LinkedIn did not return a member profile id for this app. Reconnect after enabling r_liteprofile or Sign In with LinkedIn for this LinkedIn app.",
+        error_description: "LinkedIn did not return a member profile id. Go to developer.linkedin.com → your app → Products and enable 'Sign In with LinkedIn using OpenID Connect', then reconnect.",
         app_id: appId,
       }), 302);
     }
