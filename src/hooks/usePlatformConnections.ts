@@ -94,7 +94,10 @@ export function useConnectPlatform() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ app_id: appId || null }),
+            body: JSON.stringify({
+              app_id: appId || null,
+              return_to: window.location.origin,
+            }),
           }
         );
 
