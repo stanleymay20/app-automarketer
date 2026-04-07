@@ -14,6 +14,7 @@ import Analytics from "./pages/Analytics";
 import WeeklyReports from "./pages/WeeklyReports";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
