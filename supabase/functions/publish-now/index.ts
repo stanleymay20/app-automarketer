@@ -207,46 +207,56 @@ Deno.serve(async (req) => {
       const username = connection.account_name?.replace("@", "") || "i";
       externalUrl = `https://x.com/${username}/status/${externalPostId}`;
     } else if (normalizedPlatform === "linkedin") {
-      const authorUrn = `urn:li:person:${connection.account_id}`;
-      console.log(`[ManualPublish] Posting to LinkedIn for user ${userId} | content=${content_id} author=${authorUrn}`);
+      // Validate account_id exists
+      if (!connection.account_id) {
+        return new Response(JSON.stringify({
+          error: "LinkedIn account_id is missing. Please disconnect and reconnect LinkedIn.",
+          action: "reconnect",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
-      // Use LinkedIn Posts API (/rest/posts)
-      const postResponse = await fetch("https://api.linkedin.com/rest/posts", {
+      const authorUrn = `urn:li:person:${connection.account_id}`;
+      console.log(`[ManualPublish] Posting to LinkedIn | content=${content_id} author=${authorUrn}`);
+
+      // Use /v2/ugcPosts — documented for Share on LinkedIn self-serve product
+      const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "LinkedIn-Version": "202401",
           "X-Restli-Protocol-Version": "2.0.0",
         },
         body: JSON.stringify({
           author: authorUrn,
-          commentary: contentItem.content_text,
-          visibility: "PUBLIC",
-          distribution: {
-            feedDistribution: "MAIN_FEED",
-            targetEntities: [],
-            thirdPartyDistributionChannels: [],
-          },
           lifecycleState: "PUBLISHED",
+          specificContent: {
+            "com.linkedin.ugc.ShareContent": {
+              shareCommentary: { text: contentItem.content_text },
+              shareMediaCategory: "NONE",
+            },
+          },
+          visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
         }),
       });
 
+      const postBody = await postResponse.text();
+      console.log(`[ManualPublish] LinkedIn response: ${postResponse.status} ${postBody}`);
+
       if (!postResponse.ok) {
-        const postData = await postResponse.text();
         let errorDetail: string;
-        try { errorDetail = JSON.parse(postData).message || postData; } catch { errorDetail = postData; }
-        const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
+        try { errorDetail = JSON.parse(postBody).message || postBody; } catch { errorDetail = postBody; }
+        const failureReason = `LinkedIn ugcPosts ${postResponse.status}: ${errorDetail}`;
         await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", content_id).eq("status", "approved");
         return new Response(JSON.stringify({ error: failureReason }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const restliId = postResponse.headers.get("x-restli-id") || "";
-      await postResponse.text();
-      externalPostId = restliId;
-      externalUrl = restliId ? `https://www.linkedin.com/feed/update/${restliId}` : "";
+      let postId = "";
+      try { postId = JSON.parse(postBody).id || ""; } catch { /* empty */ }
+      postId = postId || postResponse.headers.get("x-restli-id") || "";
+      externalPostId = postId;
+      externalUrl = postId ? `https://www.linkedin.com/feed/update/${postId}` : "";
     }
 
     // Update content

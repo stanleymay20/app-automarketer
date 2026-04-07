@@ -303,44 +303,56 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          // Validate account_id
+          if (!liConnection.account_id) {
+            await supabase.from("content").update({
+              status: "failed",
+              failure_reason: "LinkedIn account_id missing. User must reconnect.",
+            }).eq("id", item.id).eq("status", "approved");
+            errors.push({ id: item.id, error: "LinkedIn account_id missing" });
+            continue;
+          }
+
           const authorUrn = `urn:li:person:${liConnection.account_id}`;
 
-          // Use LinkedIn Posts API (/rest/posts)
-          const postResponse = await fetch("https://api.linkedin.com/rest/posts", {
+          // Use /v2/ugcPosts — documented for Share on LinkedIn self-serve
+          const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${liConnection.access_token}`,
               "Content-Type": "application/json",
-              "LinkedIn-Version": "202401",
               "X-Restli-Protocol-Version": "2.0.0",
             },
             body: JSON.stringify({
               author: authorUrn,
-              commentary: item.content_text,
-              visibility: "PUBLIC",
-              distribution: {
-                feedDistribution: "MAIN_FEED",
-                targetEntities: [],
-                thirdPartyDistributionChannels: [],
-              },
               lifecycleState: "PUBLISHED",
+              specificContent: {
+                "com.linkedin.ugc.ShareContent": {
+                  shareCommentary: { text: item.content_text },
+                  shareMediaCategory: "NONE",
+                },
+              },
+              visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
             }),
           });
 
+          const postBody = await postResponse.text();
+          console.log(`[Publisher] LinkedIn ugcPosts response: ${postResponse.status} ${postBody}`);
+
           if (!postResponse.ok) {
-            const postData = await postResponse.text();
             let errorDetail: string;
-            try { errorDetail = JSON.parse(postData).message || postData; } catch { errorDetail = postData; }
-            const failureReason = `LinkedIn API ${postResponse.status}: ${errorDetail}`;
+            try { errorDetail = JSON.parse(postBody).message || postBody; } catch { errorDetail = postBody; }
+            const failureReason = `LinkedIn ugcPosts ${postResponse.status}: ${errorDetail}`;
             await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", item.id).eq("status", "approved");
             errors.push({ id: item.id, error: failureReason });
             continue;
           }
 
-          const restliId = postResponse.headers.get("x-restli-id") || "";
-          await postResponse.text();
-          externalPostId = restliId;
-          externalUrl = restliId ? `https://www.linkedin.com/feed/update/${restliId}` : "";
+          let postId = "";
+          try { postId = JSON.parse(postBody).id || ""; } catch { /* empty */ }
+          postId = postId || postResponse.headers.get("x-restli-id") || "";
+          externalPostId = postId;
+          externalUrl = postId ? `https://www.linkedin.com/feed/update/${postId}` : "";
         } else {
           console.log(`[Publisher] Skipping content ${item.id} — no real API for ${item.platform} yet`);
           skippedIds.push(item.id);
