@@ -274,8 +274,17 @@ Deno.serve(async (req) => {
             }
           }
         } catch (imgErr) {
-          console.error("[ManualPublish] LinkedIn image upload error (continuing text-only):", imgErr);
+          console.error("[ManualPublish] LinkedIn image upload error:", imgErr);
         }
+      }
+
+      // Block publish if image exists but upload failed
+      if (contentItem.image_url && !assetUrn) {
+        const failureReason = "Image upload to LinkedIn failed. Cannot publish without attached media.";
+        await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", content_id).eq("status", "approved");
+        return new Response(JSON.stringify({ error: failureReason }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // Build share content
