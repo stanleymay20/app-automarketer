@@ -106,14 +106,14 @@ Deno.serve(async (req) => {
     }
 
     const normalizedPlatform = contentItem.platform.toLowerCase().replace("x (twitter)", "x").replace("twitter", "x");
-    if (normalizedPlatform !== "x") {
-      return new Response(JSON.stringify({ error: "Manual publish only supported for X" }), {
+    if (normalizedPlatform !== "x" && normalizedPlatform !== "linkedin") {
+      return new Response(JSON.stringify({ error: "Manual publish only supported for X and LinkedIn" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check live posting
-    if (Deno.env.get("LIVE_X_POSTING") !== "true") {
+    // Check live posting for X
+    if (normalizedPlatform === "x" && Deno.env.get("LIVE_X_POSTING") !== "true") {
       return new Response(JSON.stringify({ error: "Live X posting is disabled (LIVE_X_POSTING != true)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
