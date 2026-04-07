@@ -38,3 +38,15 @@ verify_jwt = false
 
 [functions.generate-learning-insights]
 verify_jwt = false
+
+[functions.linkedin-auth-start]
+verify_jwt = false
+
+[functions.linkedin-auth-callback]
+verify_jwt = false
+
+[functions.linkedin-refresh-token]
+verify_jwt = false
+
+[functions.linkedin-publish-post]
+verify_jwt = false

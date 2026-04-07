@@ -56,6 +56,10 @@ export function PlatformConnections() {
       toast.success("Successfully connected to X (Twitter)!");
       queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
       setSearchParams({ tab: "platforms" }, { replace: true });
+    } else if (connected === "linkedin") {
+      toast.success("Successfully connected to LinkedIn!");
+      queryClient.invalidateQueries({ queryKey: ["platform-connections"] });
+      setSearchParams({ tab: "platforms" }, { replace: true });
     } else if (error) {
       const messages: Record<string, string> = {
         access_denied: "You denied access to X. Try again when ready.",
