@@ -93,8 +93,12 @@ export function useConnectPlatform() {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Failed to start OAuth");
 
-        // Redirect to X OAuth
-        window.location.href = result.url;
+        // Open X OAuth in a new window/tab to avoid blanking the app
+        const authWindow = window.open(result.url, "_blank");
+        if (!authWindow) {
+          // Popup blocked — fall back to same-window redirect
+          window.location.href = result.url;
+        }
         return null;
       }
 
