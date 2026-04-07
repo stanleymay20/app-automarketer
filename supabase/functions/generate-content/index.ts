@@ -37,25 +37,29 @@ Rules:
 - Keep content natural and human - avoid buzzwords and excessive emojis
 - Each post should have a clear call-to-action
 - Adapt the writing style to each platform's culture
-- Posts should be concise but impactful
+- ALWAYS include 3-5 relevant hashtags at the end of every post, separated by spaces
+- Hashtags should be specific and relevant to the content, industry, and audience
+- Mix popular and niche hashtags for better reach
 
 Platform guidelines:
-- X (Twitter): Max 280 characters, punchy and direct
-- LinkedIn: Professional, value-focused, can be longer
-- Instagram: Visual-friendly, use 2-3 relevant emojis, include hashtag suggestions
-- Facebook: Conversational, community-focused
-- Email: Subject line + brief teaser, professional`;
+- X (Twitter): Max 280 characters (including hashtags), punchy and direct
+- LinkedIn: Professional, value-focused, can be longer. Use industry-specific hashtags
+- Instagram: Visual-friendly, use 2-3 relevant emojis, include 5-8 hashtags
+- Facebook: Conversational, community-focused, 3-5 hashtags
+- Email: Subject line + brief teaser, professional (no hashtags needed for email)`;
 
     const userPrompt = `Create ${postsPerPlatform} unique marketing posts for each of these platforms: ${app.platforms.join(', ')}.
 
 App Name: ${app.name}
 Description: ${app.description || 'A useful application'}
 
+Important: Every post MUST end with relevant hashtags (e.g. #SaaS #ProductivityTools #AI). The hashtags should be on a new line at the end of the post content.
+
 Return your response as a JSON array with this exact format:
 [
   {
     "platform": "platform_name",
-    "content": "the post content"
+    "content": "the post content\\n\\n#Hashtag1 #Hashtag2 #Hashtag3"
   }
 ]
 
