@@ -19,12 +19,11 @@ import { useUserSettings, useUpdateUserSettings } from "@/hooks/useUserSettings"
 import logo from "@/assets/logo.png";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: AppWindow, label: "Apps", path: "/apps" },
-  { icon: FileText, label: "Content", path: "/content" },
+  { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
+  { icon: FileText, label: "Create Post", path: "/create" },
+  { icon: AppWindow, label: "Content", path: "/content" },
+  { icon: BarChart3, label: "Performance", path: "/analytics" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
-  { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: Mail, label: "Reports", path: "/weekly-reports" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
