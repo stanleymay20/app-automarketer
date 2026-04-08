@@ -26,10 +26,10 @@ type NotificationKey =
   | "notification_engagement_alerts";
 
 const NOTIFICATION_SETTINGS: { key: NotificationKey; title: string; desc: string }[] = [
-  { key: "notification_content_ready", title: "Content Ready for Approval", desc: "Get notified when new content is generated" },
-  { key: "notification_post_published", title: "Post Published", desc: "Confirmation when content goes live" },
-  { key: "notification_weekly_report", title: "Weekly Performance Report", desc: "Summary of your marketing performance" },
-  { key: "notification_engagement_alerts", title: "Engagement Alerts", desc: "Notify when posts get high engagement" },
+  { key: "notification_content_ready", title: "Content Ready for Approval", desc: "Show a notification when new content is generated and ready for review" },
+  { key: "notification_post_published", title: "Post Published", desc: "Show a confirmation when content is successfully published to a platform" },
+  { key: "notification_weekly_report", title: "Weekly Performance Report", desc: "Generate and store weekly performance summaries every Monday" },
+  { key: "notification_engagement_alerts", title: "Engagement Alerts", desc: "Notify when posts receive high engagement (coming soon)" },
 ];
 
 function PlanDetailsFromSettings({ plan }: { plan: string }) {

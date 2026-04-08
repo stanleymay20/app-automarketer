@@ -132,10 +132,12 @@ export function useGenerateContent() {
       queryClient.invalidateQueries({ queryKey: ["content"] });
       queryClient.invalidateQueries({ queryKey: ["apps"] });
       queryClient.invalidateQueries({ queryKey: ["plan-limits"] });
-      toast({
-        title: "Content generated!",
-        description: `${data.length} posts created and ${settings?.autopilot_mode ? "approved for publishing" : "waiting for approval"}.`,
-      });
+      if (settings?.notification_content_ready !== false) {
+        toast({
+          title: "Content generated!",
+          description: `${data.length} posts created and ${settings?.autopilot_mode ? "approved for publishing" : "waiting for approval"}.`,
+        });
+      }
     },
     onError: (error) => {
       toast({

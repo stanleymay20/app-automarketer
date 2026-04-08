@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUserSettings } from "@/hooks/useUserSettings";
 
 export function usePublishNow() {
   const queryClient = useQueryClient();
+  const { data: settings } = useUserSettings();
 
   return useMutation({
     mutationFn: async (contentId: string) => {
@@ -30,13 +32,15 @@ export function usePublishNow() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["content"] });
-      const url = data.post_url || data.tweet_url;
-      toast.success("Published successfully!", {
-        description: url ? "View your live post" : undefined,
-        action: url
-          ? { label: "View", onClick: () => window.open(url, "_blank") }
-          : undefined,
-      });
+      if (settings?.notification_post_published !== false) {
+        const url = data.post_url || data.tweet_url;
+        toast.success("Published successfully!", {
+          description: url ? "View your live post" : undefined,
+          action: url
+            ? { label: "View", onClick: () => window.open(url, "_blank") }
+            : undefined,
+        });
+      }
     },
     onError: (error) => {
       queryClient.invalidateQueries({ queryKey: ["content"] });
