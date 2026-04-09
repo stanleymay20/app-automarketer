@@ -27,7 +27,14 @@ export function usePublishNow() {
       );
 
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Publish failed");
+      if (!response.ok) {
+        // Attach action metadata for reconnect handling
+        const error = new Error(result.error || "Publish failed") as Error & { action?: string };
+        if (result.action) {
+          error.action = result.action;
+        }
+        throw error;
+      }
       return result;
     },
     onSuccess: (data) => {
@@ -42,9 +49,20 @@ export function usePublishNow() {
         });
       }
     },
-    onError: (error) => {
+    onError: (error: Error & { action?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.error(`Publish failed: ${error.message}`);
+      
+      if (error.action === "reconnect") {
+        toast.error("Account needs reconnection", {
+          description: error.message,
+          action: {
+            label: "Go to Settings",
+            onClick: () => window.location.assign("/settings"),
+          },
+        });
+      } else {
+        toast.error(`Publish failed: ${error.message}`);
+      }
     },
   });
 }

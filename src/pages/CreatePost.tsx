@@ -47,6 +47,7 @@ export default function CreatePost() {
   const { data: allContent } = useContent();
   const approveContent = useApproveContent();
   const publishNow = usePublishNow();
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const { data: connections } = usePlatformConnections();
   const connectPlatform = useConnectPlatform();
 
@@ -80,7 +81,10 @@ export default function CreatePost() {
       setShowConnectModal(true);
       return;
     }
-    publishNow.mutate(postId);
+    setPublishingId(postId);
+    publishNow.mutate(postId, {
+      onSettled: () => setPublishingId(null),
+    });
   };
 
   const handleConnect = (platform: Platform) => {
@@ -238,9 +242,9 @@ export default function CreatePost() {
                             size="sm"
                             className="flex-1 gap-1.5"
                             onClick={() => handlePublish(post.id, post.platform)}
-                            disabled={publishNow.isPending || (!isApproved && post.status !== "approved")}
+                            disabled={publishingId === post.id || (!isApproved && post.status !== "approved")}
                           >
-                            {publishNow.isPending ? (
+                            {publishingId === post.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               <Send className="h-3.5 w-3.5" />
