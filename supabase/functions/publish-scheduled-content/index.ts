@@ -10,9 +10,13 @@ interface PublishResult {
   success: boolean;
   tweetId?: string;
   tweetUrl?: string;
+  postId?: string;
+  postUrl?: string;
   error?: string;
+  permanent?: boolean; // true = don't retry, mark as failed
 }
 
+// ─── X Token Refresh ────────────────────────────────────────────────
 async function refreshXToken(
   supabase: ReturnType<typeof createClient>,
   connection: { id: string; user_id: string; refresh_token: string }
@@ -58,12 +62,12 @@ async function refreshXToken(
   return { access_token: data.access_token };
 }
 
+// ─── X Connection Resolver ──────────────────────────────────────────
 async function getXConnection(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   appId: string
 ) {
-  // Try app-specific connection first
   const { data: appConn } = await supabase
     .from("platform_connections")
     .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
@@ -75,7 +79,6 @@ async function getXConnection(
 
   if (appConn) return appConn;
 
-  // Fallback to user-level connection
   const { data: userConn } = await supabase
     .from("platform_connections")
     .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
@@ -85,9 +88,138 @@ async function getXConnection(
     .is("app_id", null)
     .single();
 
-  return userConn;
+  if (userConn) return userConn;
+
+  // Final fallback: any connected X account
+  const { data: anyConn } = await supabase
+    .from("platform_connections")
+    .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name")
+    .eq("user_id", userId)
+    .eq("platform", "x")
+    .eq("connected", true)
+    .limit(1)
+    .single();
+
+  return anyConn;
 }
 
+// ─── LinkedIn Connection Resolver ───────────────────────────────────
+async function getLinkedInConnection(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  appId: string
+) {
+  const { data: appConn } = await supabase
+    .from("platform_connections")
+    .select("id, access_token, expires_at, account_name, account_id")
+    .eq("user_id", userId)
+    .eq("platform", "linkedin")
+    .eq("connected", true)
+    .eq("app_id", appId)
+    .single();
+
+  if (appConn) return appConn;
+
+  const { data: userConn } = await supabase
+    .from("platform_connections")
+    .select("id, access_token, expires_at, account_name, account_id")
+    .eq("user_id", userId)
+    .eq("platform", "linkedin")
+    .eq("connected", true)
+    .is("app_id", null)
+    .single();
+
+  if (userConn) return userConn;
+
+  const { data: anyConn } = await supabase
+    .from("platform_connections")
+    .select("id, access_token, expires_at, account_name, account_id")
+    .eq("user_id", userId)
+    .eq("platform", "linkedin")
+    .eq("connected", true)
+    .limit(1)
+    .single();
+
+  return anyConn;
+}
+
+// ─── LinkedIn Image Upload ──────────────────────────────────────────
+async function uploadImageToLinkedIn(
+  accessToken: string,
+  authorUrn: string,
+  imageUrl: string
+): Promise<string | null> {
+  try {
+    const registerRes = await fetch(
+      "https://api.linkedin.com/v2/assets?action=registerUpload",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          registerUploadRequest: {
+            recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+            owner: authorUrn,
+            serviceRelationships: [
+              { relationshipType: "OWNER", identifier: "urn:li:userGeneratedContent" },
+            ],
+          },
+        }),
+      }
+    );
+
+    if (!registerRes.ok) {
+      const errText = await registerRes.text();
+      console.error("[Publisher] LinkedIn register upload failed:", registerRes.status, errText);
+      return null;
+    }
+
+    const registerData = await registerRes.json();
+    const uploadUrl =
+      registerData.value?.uploadMechanism?.[
+        "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"
+      ]?.uploadUrl;
+    const asset = registerData.value?.asset;
+
+    if (!uploadUrl || !asset) {
+      console.error("[Publisher] Missing uploadUrl or asset in LinkedIn register response");
+      return null;
+    }
+
+    const imageRes = await fetch(imageUrl);
+    if (!imageRes.ok) {
+      console.error("[Publisher] Failed to download image:", imageRes.status);
+      return null;
+    }
+    const imageBytes = new Uint8Array(await imageRes.arrayBuffer());
+    const contentType = imageRes.headers.get("content-type") || "image/png";
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": contentType,
+      },
+      body: imageBytes,
+    });
+
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      console.error("[Publisher] LinkedIn image upload failed:", uploadRes.status, errText);
+      return null;
+    }
+
+    console.log(`[Publisher] LinkedIn image uploaded: ${asset}`);
+    return asset;
+  } catch (err) {
+    console.error("[Publisher] LinkedIn image upload error:", err);
+    return null;
+  }
+}
+
+// ─── Publish to X ───────────────────────────────────────────────────
 async function publishToX(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -99,23 +231,21 @@ async function publishToX(
 
   const livePosting = Deno.env.get("LIVE_X_POSTING");
   if (livePosting !== "true") {
-    console.log(`[Publisher] Live X posting disabled (LIVE_X_POSTING=${livePosting}) | content=${contentId}`);
-    return { success: false, error: "live_posting_disabled" };
+    console.log(`[Publisher] Live X posting disabled | content=${contentId}`);
+    return { success: false, error: "Live X posting is currently disabled", permanent: false };
   }
 
   const connection = await getXConnection(supabase, userId, appId);
 
   if (!connection) {
-    console.error(`[Publisher] No X connection for user ${userId} app ${appId} | content=${contentId}`);
-    return { success: false, error: "X account not connected" };
+    return { success: false, error: "X account not connected", permanent: true };
   }
 
   if (!connection.access_token) {
-    console.error(`[Publisher] No access token for user ${userId} | content=${contentId}`);
-    return { success: false, error: "X access token missing" };
+    return { success: false, error: "X access token missing", permanent: true };
   }
 
-  // Check daily posting cap (max 2/day)
+  // Daily cap check (max 2/day)
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -130,10 +260,10 @@ async function publishToX(
 
   if ((todayCount || 0) >= 2) {
     console.warn(`[Publisher] Daily X cap reached for user ${userId} (${todayCount}/2) | content=${contentId}`);
-    return { success: false, error: "daily_cap_reached" };
+    return { success: false, error: "Daily posting limit reached (2/day). Will retry tomorrow.", permanent: false };
   }
 
-  // Check if token needs refresh
+  // Token refresh if needed
   let accessToken = connection.access_token;
   if (connection.expires_at) {
     const expiresAt = new Date(connection.expires_at);
@@ -147,13 +277,14 @@ async function publishToX(
       if (refreshed) {
         accessToken = refreshed.access_token;
       } else {
-        return { success: false, error: "Token expired and refresh failed" };
+        return { success: false, error: "Token expired and refresh failed. Please reconnect X.", permanent: true };
       }
+    } else if (expiresAt < new Date() && !connection.refresh_token) {
+      return { success: false, error: "X token expired. Please reconnect.", permanent: true };
     }
   }
 
-  // Post to X API v2
-  console.log(`[Publisher] Posting tweet for user ${userId} | content=${contentId}`);
+  console.log(`[Publisher] Posting tweet | content=${contentId}`);
 
   const tweetResponse = await fetch("https://api.x.com/2/tweets", {
     method: "POST",
@@ -169,18 +300,127 @@ async function publishToX(
   if (!tweetResponse.ok) {
     console.error(`[Publisher] X API error [${tweetResponse.status}] | content=${contentId}:`, tweetData);
     const errorDetail = tweetData.detail || tweetData.title || JSON.stringify(tweetData);
-    return { success: false, error: `X API ${tweetResponse.status}: ${errorDetail}` };
+    // 402 = credits depleted, 403 = permissions, 401 = auth — all permanent
+    const isPermanent = [401, 402, 403].includes(tweetResponse.status);
+    return { success: false, error: `X API ${tweetResponse.status}: ${errorDetail}`, permanent: isPermanent };
   }
 
   const tweetId = tweetData.data?.id;
   const username = connection.account_name?.replace("@", "") || "i";
   const tweetUrl = `https://x.com/${username}/status/${tweetId}`;
 
-  console.log(`[Publisher] Tweet published successfully | content=${contentId} tweet=${tweetId} url=${tweetUrl}`);
+  console.log(`[Publisher] Tweet published | content=${contentId} url=${tweetUrl}`);
 
   return { success: true, tweetId, tweetUrl };
 }
 
+// ─── Publish to LinkedIn ────────────────────────────────────────────
+async function publishToLinkedIn(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  contentId: string,
+  contentText: string,
+  appId: string,
+  imageUrl: string | null
+): Promise<PublishResult> {
+  console.log(`[Publisher] publishToLinkedIn started | content=${contentId} user=${userId} app=${appId}`);
+
+  const connection = await getLinkedInConnection(supabase, userId, appId);
+
+  if (!connection || !connection.access_token) {
+    return { success: false, error: "LinkedIn account not connected", permanent: true };
+  }
+
+  if (!connection.account_id) {
+    return { success: false, error: "LinkedIn account_id missing. Please reconnect.", permanent: true };
+  }
+
+  // Check token expiry
+  if (connection.expires_at && new Date(connection.expires_at) < new Date()) {
+    await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
+    return { success: false, error: "LinkedIn token expired. Please reconnect.", permanent: true };
+  }
+
+  const accessToken = connection.access_token;
+  const authorUrn = `urn:li:person:${connection.account_id}`;
+
+  // Upload image if available
+  let assetUrn: string | null = null;
+  if (imageUrl) {
+    assetUrn = await uploadImageToLinkedIn(accessToken, authorUrn, imageUrl);
+    console.log(`[Publisher] LinkedIn image asset: ${assetUrn || "FAILED"} | content=${contentId}`);
+
+    // Block publish if image upload failed (mandatory media rule)
+    if (!assetUrn) {
+      return { success: false, error: "LinkedIn image upload failed. Cannot publish without media.", permanent: true };
+    }
+  }
+
+  // Build share content
+  const shareContent: Record<string, unknown> = {
+    shareCommentary: { text: contentText },
+  };
+
+  if (assetUrn) {
+    shareContent.shareMediaCategory = "IMAGE";
+    shareContent.media = [{ status: "READY", media: assetUrn }];
+  } else {
+    shareContent.shareMediaCategory = "NONE";
+  }
+
+  console.log(`[Publisher] POST /v2/ugcPosts | hasImage=${!!assetUrn} | content=${contentId}`);
+
+  const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "X-Restli-Protocol-Version": "2.0.0",
+      "LinkedIn-Version": "202401",
+    },
+    body: JSON.stringify({
+      author: authorUrn,
+      lifecycleState: "PUBLISHED",
+      specificContent: {
+        "com.linkedin.ugc.ShareContent": shareContent,
+      },
+      visibility: {
+        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+      },
+    }),
+  });
+
+  const postBody = await postResponse.text();
+  console.log(`[Publisher] LinkedIn response: ${postResponse.status} ${postBody.substring(0, 300)}`);
+
+  if (!postResponse.ok) {
+    let errorDetail: string;
+    try { errorDetail = JSON.parse(postBody).message || postBody; } catch { errorDetail = postBody; }
+    const isPermanent = [401, 403].includes(postResponse.status);
+    return { success: false, error: `LinkedIn API ${postResponse.status}: ${errorDetail}`, permanent: isPermanent };
+  }
+
+  let postId = "";
+  try { postId = JSON.parse(postBody).id || ""; } catch { /* empty */ }
+  postId = postId || postResponse.headers.get("x-restli-id") || "";
+  const postUrl = postId ? `https://www.linkedin.com/feed/update/${postId}` : "";
+
+  console.log(`[Publisher] LinkedIn published | content=${contentId} url=${postUrl}`);
+
+  return { success: true, postId, postUrl };
+}
+
+// ─── Max Staleness: fail posts stuck too long ───────────────────────
+const MAX_OVERDUE_HOURS = 48;
+
+function isStalePost(scheduledFor: string | null): boolean {
+  if (!scheduledFor) return false;
+  const scheduled = new Date(scheduledFor);
+  const cutoff = new Date(Date.now() - MAX_OVERDUE_HOURS * 60 * 60 * 1000);
+  return scheduled < cutoff;
+}
+
+// ─── Main Handler ───────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -189,7 +429,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('[Publisher] Starting scheduled content publishing run...');
@@ -197,7 +436,7 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     const { data: contentToPublish, error: fetchError } = await supabase
       .from('content')
-      .select('id, user_id, platform, content_text, app_id, scheduled_for')
+      .select('id, user_id, platform, content_text, app_id, scheduled_for, image_url')
       .eq('status', 'approved')
       .lte('scheduled_for', now)
       .is('published_at', null);
@@ -207,12 +446,6 @@ Deno.serve(async (req) => {
       throw fetchError;
     }
 
-    const normalizeContentPlatforms = (items: typeof contentToPublish) =>
-      items?.map(item => ({
-        ...item,
-        platform: item.platform.toLowerCase().replace("x (twitter)", "x").replace("twitter", "x"),
-      })) || [];
-
     if (!contentToPublish || contentToPublish.length === 0) {
       console.log('[Publisher] No content ready to publish');
       return new Response(
@@ -221,7 +454,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const normalizedContent = normalizeContentPlatforms(contentToPublish);
+    // Normalize platforms
+    const normalizedContent = contentToPublish.map(item => ({
+      ...item,
+      platform: item.platform.toLowerCase().replace("x (twitter)", "x").replace("twitter", "x"),
+    }));
+
     console.log(`[Publisher] Found ${normalizedContent.length} items to publish`);
 
     const publishedIds: string[] = [];
@@ -230,161 +468,74 @@ Deno.serve(async (req) => {
 
     for (const item of normalizedContent) {
       try {
+        // Fail stale posts that have been stuck for too long
+        if (isStalePost(item.scheduled_for)) {
+          const failureReason = `Post overdue by more than ${MAX_OVERDUE_HOURS} hours. Marked as failed.`;
+          await supabase.from('content').update({
+            status: 'failed', failure_reason: failureReason,
+          }).eq('id', item.id).eq('status', 'approved');
+          console.log(`[Publisher] Stale post failed: ${item.id}`);
+          errors.push({ id: item.id, error: failureReason });
+          continue;
+        }
+
         console.log(`[Publisher] Processing ${item.platform} content ${item.id} for user ${item.user_id}`);
 
-        let externalPostId: string | null = null;
-        let externalUrl: string | null = null;
+        let result: PublishResult;
 
         if (item.platform === "x") {
-          const result = await publishToX(supabase, item.user_id, item.id, item.content_text, item.app_id);
-
-          if (result.success) {
-            externalPostId = result.tweetId || null;
-            externalUrl = result.tweetUrl || null;
-          } else if (result.error === "daily_cap_reached") {
-            console.log(`[Publisher] Skipping content ${item.id} - daily cap reached`);
-            skippedIds.push(item.id);
-            continue;
-          } else if (result.error === "live_posting_disabled") {
-            console.log(`[Publisher] Skipping content ${item.id} — live X posting is disabled`);
-            skippedIds.push(item.id);
-            continue;
-          } else {
-            const failureReason = result.error || "Unknown X posting error";
-            await supabase.from('content').update({
-              status: 'failed',
-              failure_reason: failureReason,
-            }).eq('id', item.id).eq('status', 'approved');
-
-            console.log(`[Publisher] Marked content ${item.id} as failed: ${failureReason}`);
-            errors.push({ id: item.id, error: failureReason });
-            continue;
-          }
+          result = await publishToX(supabase, item.user_id, item.id, item.content_text, item.app_id);
         } else if (item.platform === "linkedin") {
-          // LinkedIn publishing — no refresh token available
-
-          // Get LinkedIn connection
-          const { data: liAppConn } = await supabase
-            .from("platform_connections")
-            .select("id, access_token, expires_at, account_name, account_id")
-            .eq("user_id", item.user_id)
-            .eq("platform", "linkedin")
-            .eq("connected", true)
-            .eq("app_id", item.app_id)
-            .single();
-
-          let liConnection = liAppConn;
-          if (!liConnection) {
-            const { data: liUserConn } = await supabase
-              .from("platform_connections")
-              .select("id, access_token, expires_at, account_name, account_id")
-              .eq("user_id", item.user_id)
-              .eq("platform", "linkedin")
-              .eq("connected", true)
-              .is("app_id", null)
-              .single();
-            liConnection = liUserConn;
-          }
-
-          if (!liConnection || !liConnection.access_token) {
-            console.log(`[Publisher] No LinkedIn connection for user ${item.user_id} | content=${item.id}`);
-            skippedIds.push(item.id);
-            continue;
-          }
-
-          // Check token expiry — no refresh possible
-          if (liConnection.expires_at && new Date(liConnection.expires_at) < new Date()) {
-            await supabase.from("platform_connections").update({ connected: false }).eq("id", liConnection.id);
-            await supabase.from("content").update({
-              status: "failed",
-              failure_reason: "LinkedIn token expired. User must reconnect.",
-            }).eq("id", item.id).eq("status", "approved");
-            errors.push({ id: item.id, error: "LinkedIn token expired" });
-            continue;
-          }
-
-          // Validate account_id
-          if (!liConnection.account_id) {
-            await supabase.from("content").update({
-              status: "failed",
-              failure_reason: "LinkedIn account_id missing. User must reconnect.",
-            }).eq("id", item.id).eq("status", "approved");
-            errors.push({ id: item.id, error: "LinkedIn account_id missing" });
-            continue;
-          }
-
-          const authorUrn = `urn:li:person:${liConnection.account_id}`;
-
-          // Use /v2/ugcPosts — documented for Share on LinkedIn self-serve
-          const postResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${liConnection.access_token}`,
-              "Content-Type": "application/json",
-              "X-Restli-Protocol-Version": "2.0.0",
-            },
-            body: JSON.stringify({
-              author: authorUrn,
-              lifecycleState: "PUBLISHED",
-              specificContent: {
-                "com.linkedin.ugc.ShareContent": {
-                  shareCommentary: { text: item.content_text },
-                  shareMediaCategory: "NONE",
-                },
-              },
-              visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
-            }),
-          });
-
-          const postBody = await postResponse.text();
-          console.log(`[Publisher] LinkedIn ugcPosts response: ${postResponse.status} ${postBody}`);
-
-          if (!postResponse.ok) {
-            let errorDetail: string;
-            try { errorDetail = JSON.parse(postBody).message || postBody; } catch { errorDetail = postBody; }
-            const failureReason = `LinkedIn ugcPosts ${postResponse.status}: ${errorDetail}`;
-            await supabase.from("content").update({ status: "failed", failure_reason: failureReason }).eq("id", item.id).eq("status", "approved");
-            errors.push({ id: item.id, error: failureReason });
-            continue;
-          }
-
-          let postId = "";
-          try { postId = JSON.parse(postBody).id || ""; } catch { /* empty */ }
-          postId = postId || postResponse.headers.get("x-restli-id") || "";
-          externalPostId = postId;
-          externalUrl = postId ? `https://www.linkedin.com/feed/update/${postId}` : "";
+          result = await publishToLinkedIn(supabase, item.user_id, item.id, item.content_text, item.app_id, item.image_url);
         } else {
-          console.log(`[Publisher] Skipping content ${item.id} — no real API for ${item.platform} yet`);
+          console.log(`[Publisher] Skipping ${item.id} — no API for ${item.platform}`);
           skippedIds.push(item.id);
           continue;
         }
 
-        const { error: updateError } = await supabase
-          .from('content')
-          .update({ 
-            status: 'published', 
-            published_at: new Date().toISOString(),
-            impressions: 0,
-            engagements: 0,
-            clicks: 0,
-            external_post_id: externalPostId,
-            external_url: externalUrl,
-          })
-          .eq('id', item.id)
-          .eq('status', 'approved')
-          .is('published_at', null);
+        if (result.success) {
+          const externalPostId = result.tweetId || result.postId || null;
+          const externalUrl = result.tweetUrl || result.postUrl || null;
 
-        if (updateError) {
-          console.error(`[Publisher] Error updating content ${item.id}:`, updateError);
-          errors.push({ id: item.id, error: updateError.message });
+          const { error: updateError } = await supabase
+            .from('content')
+            .update({
+              status: 'published',
+              published_at: new Date().toISOString(),
+              impressions: 0,
+              engagements: 0,
+              clicks: 0,
+              external_post_id: externalPostId,
+              external_url: externalUrl,
+            })
+            .eq('id', item.id)
+            .eq('status', 'approved')
+            .is('published_at', null);
+
+          if (updateError) {
+            console.error(`[Publisher] Update error for ${item.id}:`, updateError);
+            errors.push({ id: item.id, error: updateError.message });
+          } else {
+            publishedIds.push(item.id);
+            console.log(`[Publisher] Published ${item.id} → ${externalUrl || 'no URL'}`);
+          }
+        } else if (result.permanent) {
+          // Permanent failure — mark as failed, don't retry
+          await supabase.from('content').update({
+            status: 'failed',
+            failure_reason: result.error || "Permanent publishing error",
+          }).eq('id', item.id).eq('status', 'approved');
+          console.log(`[Publisher] Permanent failure for ${item.id}: ${result.error}`);
+          errors.push({ id: item.id, error: result.error || "Unknown error" });
         } else {
-          publishedIds.push(item.id);
-          console.log(`[Publisher] Successfully published content ${item.id} to ${item.platform}${externalUrl ? ` → ${externalUrl}` : ''}`);
+          // Transient failure — skip for now, will retry on next run
+          console.log(`[Publisher] Transient skip for ${item.id}: ${result.error}`);
+          skippedIds.push(item.id);
         }
       } catch (itemError) {
-        console.error(`[Publisher] Error processing content ${item.id}:`, itemError);
+        console.error(`[Publisher] Error processing ${item.id}:`, itemError);
         errors.push({ id: item.id, error: String(itemError) });
-        
+
         await supabase.from('content').update({
           status: 'failed',
           failure_reason: String(itemError),
