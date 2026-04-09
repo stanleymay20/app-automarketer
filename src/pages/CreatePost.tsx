@@ -19,9 +19,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const TONE_OPTIONS = [
+  { value: "professional", label: "Professional", description: "Executive, authoritative" },
+  { value: "casual", label: "Casual", description: "Friendly, conversational" },
+  { value: "bold", label: "Bold", description: "Provocative, contrarian" },
+  { value: "faith-aligned", label: "Faith-Aligned", description: "Purposeful, values-driven" },
+];
 
 export default function CreatePost() {
   const [topic, setTopic] = useState("");
+  const [tone, setTone] = useState("professional");
   const [generatedIds, setGeneratedIds] = useState<string[]>([]);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
@@ -50,6 +65,7 @@ export default function CreatePost() {
     const result = await generateContent({
       ...app,
       description: topic,
+      brand_tone: tone,
     });
     if (result) {
       setGeneratedIds(result.map((r: any) => r.id));
@@ -89,13 +105,12 @@ export default function CreatePost() {
   return (
     <DashboardLayout title="Create Post">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Back link */}
         <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Back to Home
         </Link>
 
-        {/* Step 1: Topic Input */}
+        {/* Step 1: Topic + Tone */}
         <Card>
           <CardContent className="p-5 space-y-4">
             <div>
@@ -108,6 +123,25 @@ export default function CreatePost() {
               onChange={(e) => setTopic(e.target.value)}
               className="min-h-[100px] text-base resize-none"
             />
+
+            {/* Tone Selector */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Tone</label>
+              <Select value={tone} onValueChange={setTone}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TONE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      <span className="font-medium">{t.label}</span>
+                      <span className="text-muted-foreground ml-1.5 text-xs">— {t.description}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !topic.trim() || !apps?.length}
@@ -141,7 +175,6 @@ export default function CreatePost() {
               return (
                 <Card key={post.id} className="shadow-card">
                   <CardContent className="p-4 space-y-3">
-                    {/* Platform badge */}
                     <div className="flex items-center justify-between">
                       <Badge variant="secondary" className="gap-1">
                         {platformIcon(post.platform)}
@@ -155,17 +188,14 @@ export default function CreatePost() {
                       )}
                     </div>
 
-                    {/* Post text */}
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{post.content_text}</p>
 
-                    {/* Post image */}
                     {post.image_url && (
                       <div className="rounded-lg overflow-hidden border">
                         <img src={post.image_url} alt="Post visual" className="w-full h-auto" loading="lazy" />
                       </div>
                     )}
 
-                    {/* Quality insight */}
                     {score && (
                       <div className="rounded-lg bg-muted/50 p-3 space-y-2">
                         <div className="flex items-center gap-1.5">
@@ -189,7 +219,6 @@ export default function CreatePost() {
                       </div>
                     )}
 
-                    {/* Actions */}
                     {!isPublished && (
                       <div className="flex gap-2">
                         {!isApproved && (
@@ -226,7 +255,6 @@ export default function CreatePost() {
               );
             })}
 
-            {/* Regenerate */}
             <Button variant="outline" className="w-full gap-1.5" onClick={handleGenerate} disabled={isGenerating}>
               <RefreshCw className="h-3.5 w-3.5" />
               Regenerate Posts
