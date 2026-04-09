@@ -244,10 +244,15 @@ export default function Content() {
                         size="sm"
                         variant="default"
                         className="gap-1"
-                        onClick={() => publishNow.mutate(item.id)}
-                        disabled={publishNow.isPending}
+                        onClick={() => {
+                          setPublishingId(item.id);
+                          publishNow.mutate(item.id, {
+                            onSettled: () => setPublishingId(null),
+                          });
+                        }}
+                        disabled={publishingId === item.id}
                       >
-                        {publishNow.isPending ? (
+                        {publishingId === item.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
                           <Send className="h-3 w-3" />
