@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { useContent, useApproveContent, useDeleteContent } from "@/hooks/useContent";
+import { useContent, useApproveContent, useDeleteContent, useRetryContent } from "@/hooks/useContent";
 import { useApps } from "@/hooks/useApps";
 import { useGenerateContent } from "@/hooks/useGenerateContent";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { usePublishNow } from "@/hooks/usePublishNow";
 import { useContentScores } from "@/hooks/useContentScores";
-import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, ImageIcon } from "lucide-react";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, ImageIcon, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors: Record<string, string> = {

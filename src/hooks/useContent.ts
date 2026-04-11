@@ -122,6 +122,40 @@ export function useApproveContent() {
   });
 }
 
+export function useRetryContent() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from("content")
+        .update({ status: "approved", failure_reason: null })
+        .eq("id", id)
+        .eq("status", "failed")
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Content;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast({
+        title: "Post re-queued",
+        description: "The post has been moved back to Approved and is ready to publish.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useDeleteContent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
