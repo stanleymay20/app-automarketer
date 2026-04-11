@@ -6,15 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
-import { useContent, useApproveContent, useDeleteContent, useRetryContent } from "@/hooks/useContent";
+import { Textarea } from "@/components/ui/textarea";
+import { useContent, useApproveContent, useDeleteContent, useRetryContent, useUpdateContent } from "@/hooks/useContent";
 import { useApps } from "@/hooks/useApps";
 import { useGenerateContent } from "@/hooks/useGenerateContent";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { usePublishNow } from "@/hooks/usePublishNow";
 import { useContentScores } from "@/hooks/useContentScores";
-import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, ImageIcon, RotateCcw } from "lucide-react";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, RotateCcw, Save, X } from "lucide-react";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
   approved: "bg-success/10 text-success border-success/20",
@@ -59,11 +61,14 @@ function getScoreVariant(score: number, invert = false): "good" | "warn" | "bad"
 
 export default function Content() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   const { data: content, isLoading } = useContent();
   const { data: apps } = useApps();
   const { data: connections } = usePlatformConnections();
   const approveContent = useApproveContent();
   const deleteContent = useDeleteContent();
+  const updateContent = useUpdateContent();
   const { generateContent, isGenerating } = useGenerateContent();
   const publishNow = usePublishNow();
   const retryContent = useRetryContent();
@@ -83,6 +88,30 @@ export default function Content() {
     return content.filter((c) => c.status === status);
   };
 
+  const handleStartEdit = (id: string, currentText: string) => {
+    setEditingId(id);
+    setEditText(currentText);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    if (!editText.trim()) {
+      toast.error("Content cannot be empty");
+      return;
+    }
+    updateContent.mutate({ id, content_text: editText.trim() }, {
+      onSuccess: () => {
+        setEditingId(null);
+        setEditText("");
+        toast.success("Post updated");
+      },
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+  };
+
   const renderContentList = (items: typeof content) => {
     const disconnectedItems = items?.filter(
       (item) => !connectedPlatforms.has(item.platform as Platform) && 
@@ -97,19 +126,20 @@ export default function Content() {
           <p className="text-muted-foreground mb-4">
             Generate content for your apps to see it here.
           </p>
-          {apps && apps.length > 0 && (
-            <Button 
-              onClick={() => generateContent(apps[0])}
-              disabled={isGenerating}
-              className="gap-2"
-            >
-              {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+          {apps && apps.length > 0 ? (
+            <Link to="/create">
+              <Button className="gap-2">
                 <Sparkles className="h-4 w-4" />
-              )}
-              Generate for {apps[0].name}
-            </Button>
+                Create a Post
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/onboarding">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Your First App
+              </Button>
+            </Link>
           )}
         </div>
       );
@@ -122,8 +152,10 @@ export default function Content() {
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                {disconnectedItems.length} post{disconnectedItems.length > 1 ? "s" : ""} scheduled for disconnected platforms. 
-                Connect platforms in Settings to enable publishing.
+                {disconnectedItems.length} post{disconnectedItems.length > 1 ? "s" : ""} scheduled for disconnected platforms.{" "}
+                <Link to="/settings?tab=platforms" className="underline font-medium">
+                  Connect platforms in Settings
+                </Link>
               </AlertDescription>
             </Alert>
           )}
@@ -132,6 +164,8 @@ export default function Content() {
             const failureReason = (item as any).failure_reason;
             const isFailed = item.status === "failed";
             const score = scoreMap.get(item.id);
+            const isEditing = editingId === item.id;
+            const canEdit = item.status === "pending" || item.status === "approved" || item.status === "failed";
 
             return (
               <Card key={item.id} className={`shadow-card ${
@@ -154,7 +188,7 @@ export default function Content() {
                               <Unlink className="h-3 w-3 text-destructive" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              Platform not connected
+                              Platform not connected — <Link to="/settings?tab=platforms" className="underline">connect now</Link>
                             </TooltipContent>
                           </Tooltip>
                         )}
@@ -181,13 +215,36 @@ export default function Content() {
                           View on {platformLabels[item.platform] || item.platform}
                         </a>
                       )}
-                      {!externalUrl && item.status === "published" && (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          Simulated (no live link)
-                        </Badge>
-                      )}
                     </div>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{item.content_text}</p>
+
+                    {/* Content text or edit mode */}
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          className="min-h-[100px] text-sm"
+                          placeholder="Write your post content..."
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => handleSaveEdit(item.id)}
+                            disabled={updateContent.isPending}
+                          >
+                            {updateContent.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" className="gap-1" onClick={handleCancelEdit}>
+                            <X className="h-3 w-3" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{item.content_text}</p>
+                    )}
                     
                     {/* Post Image */}
                     {(item as any).image_url && (
@@ -261,10 +318,13 @@ export default function Content() {
                         Publish Now
                       </Button>
                     )}
-                    {item.status === "approved" && item.platform !== "x" && item.platform !== "linkedin" && (
-                      <Badge variant="outline" className="text-muted-foreground text-xs">
-                        Auto-publish coming soon
-                      </Badge>
+                    {item.status === "approved" && !connectedPlatforms.has(item.platform as Platform) && (
+                      <Link to="/settings?tab=platforms">
+                        <Button size="sm" variant="outline" className="gap-1 text-warning">
+                          <Unlink className="h-3 w-3" />
+                          Connect
+                        </Button>
+                      </Link>
                     )}
                     {isFailed && (
                       <Button
@@ -290,9 +350,16 @@ export default function Content() {
                         Approve
                       </Button>
                     )}
-                    <Button size="icon" variant="ghost" className="h-8 w-8" disabled title="Edit (Coming Soon)">
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
+                    {canEdit && !isEditing && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => handleStartEdit(item.id, item.content_text)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button 
                       size="icon" 
                       variant="ghost" 
@@ -318,20 +385,12 @@ export default function Content() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground">Review and manage all generated marketing content.</p>
-          {apps && apps.length > 0 && (
-            <Button 
-              className="gap-2"
-              onClick={() => generateContent(apps[0])}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              Generate Content
+          <Link to="/create">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Post
             </Button>
-          )}
+          </Link>
         </div>
 
         {isLoading ? (
@@ -344,7 +403,7 @@ export default function Content() {
           <Tabs defaultValue="all" className="w-full">
             <TabsList>
               <TabsTrigger value="all">
-                All Content ({content?.length || 0})
+                All ({content?.length || 0})
               </TabsTrigger>
               <TabsTrigger value="pending">
                 Pending ({filterContent("pending").length})

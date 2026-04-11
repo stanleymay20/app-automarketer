@@ -5,6 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ─── Content Validation ─────────────────────────────────────────────
+const PLACEHOLDER_PATTERNS = [
+  /^lorem ipsum/i,
+  /^placeholder/i,
+  /^test post/i,
+  /^sample content/i,
+  /^\[.*\]$/,
+  /^TODO/i,
+  /^draft$/i,
+];
+
+const MIN_CONTENT_LENGTH = 20;
+
+function validateContentForPublish(contentText: string, platform: string): string | null {
+  if (!contentText || contentText.trim().length === 0) {
+    return "Content is empty. Cannot publish blank content.";
+  }
+  if (contentText.trim().length < MIN_CONTENT_LENGTH) {
+    return `Content is too short (${contentText.trim().length} chars). Minimum ${MIN_CONTENT_LENGTH} characters required.`;
+  }
+  for (const pattern of PLACEHOLDER_PATTERNS) {
+    if (pattern.test(contentText.trim())) {
+      return "Content appears to be placeholder text. Please generate or write real content before publishing.";
+    }
+  }
+  if (platform === "x" && contentText.length > 280) {
+    return `Content exceeds X's 280 character limit (${contentText.length} chars). Please shorten it.`;
+  }
+  return null;
+}
+
+// ─── X Token Refresh ────────────────────────────────────────────────
 async function refreshXToken(
   supabase: ReturnType<typeof createClient>,
   connection: { id: string; user_id: string; refresh_token: string }
@@ -112,6 +144,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── PRE-PUBLISH CONTENT VALIDATION ──────────────────────────────
+    const validationError = validateContentForPublish(contentItem.content_text, normalizedPlatform);
+    if (validationError) {
+      console.error(`[ManualPublish] Content validation failed | content=${content_id}: ${validationError}`);
+      await supabase.from("content").update({
+        status: "failed",
+        failure_reason: validationError,
+      }).eq("id", content_id).eq("status", "approved");
+      return new Response(JSON.stringify({ error: validationError }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[ManualPublish] Content validated | content=${content_id} | first120="${contentItem.content_text.substring(0, 120)}"`);
+
     // Check live posting for X
     if (normalizedPlatform === "x" && Deno.env.get("LIVE_X_POSTING") !== "true") {
       return new Response(JSON.stringify({ error: "Live X posting is disabled (LIVE_X_POSTING != true)" }), {
@@ -131,7 +178,6 @@ Deno.serve(async (req) => {
     
     let connection = appConnection;
     if (!connection) {
-      // Fallback: user-level connection (null app_id)
       const { data: userConnection } = await supabase
         .from("platform_connections")
         .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
@@ -143,7 +189,6 @@ Deno.serve(async (req) => {
       connection = userConnection;
     }
     if (!connection) {
-      // Fallback: any connected account for this platform
       const { data: anyConnection } = await supabase
         .from("platform_connections")
         .select("id, user_id, connected, access_token, refresh_token, expires_at, account_name, account_id")
@@ -156,7 +201,10 @@ Deno.serve(async (req) => {
     }
 
     if (!connection || !connection.access_token) {
-      return new Response(JSON.stringify({ error: `${normalizedPlatform} account not connected or missing token` }), {
+      return new Response(JSON.stringify({
+        error: `${normalizedPlatform === "linkedin" ? "LinkedIn" : "X"} account not connected. Please connect it in Settings first.`,
+        action: "reconnect",
+      }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -166,9 +214,7 @@ Deno.serve(async (req) => {
     if (connection.expires_at) {
       const expiresAt = new Date(connection.expires_at);
       if (expiresAt < new Date()) {
-        // Token fully expired
         if (normalizedPlatform === "linkedin") {
-          // LinkedIn has no refresh tokens — must reconnect
           await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
           return new Response(JSON.stringify({
             error: "LinkedIn token expired. Please reconnect your LinkedIn account in Settings.",
@@ -182,11 +228,13 @@ Deno.serve(async (req) => {
             id: connection.id, user_id: userId, refresh_token: connection.refresh_token,
           });
           if (refreshed) accessToken = refreshed.access_token;
-          else return new Response(JSON.stringify({ error: "Token expired and refresh failed" }), {
+          else return new Response(JSON.stringify({
+            error: "X token expired and refresh failed. Please reconnect in Settings.",
+            action: "reconnect",
+          }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        // LinkedIn: no refresh token path — handled by expiry check above
       }
     }
 
@@ -220,10 +268,9 @@ Deno.serve(async (req) => {
       const username = connection.account_name?.replace("@", "") || "i";
       externalUrl = `https://x.com/${username}/status/${externalPostId}`;
     } else if (normalizedPlatform === "linkedin") {
-      // Validate account_id exists
       if (!connection.account_id) {
         return new Response(JSON.stringify({
-          error: "LinkedIn account_id is missing. Please disconnect and reconnect LinkedIn.",
+          error: "LinkedIn account_id is missing. Please disconnect and reconnect LinkedIn in Settings.",
           action: "reconnect",
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -235,7 +282,6 @@ Deno.serve(async (req) => {
       let assetUrn: string | null = null;
       if (contentItem.image_url) {
         try {
-          // 1. Register upload
           const registerRes = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
             method: "POST",
             headers: {
@@ -255,12 +301,10 @@ Deno.serve(async (req) => {
             const uploadUrl = registerData.value?.uploadMechanism?.["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]?.uploadUrl;
             const asset = registerData.value?.asset;
             if (uploadUrl && asset) {
-              // 2. Download image
               const imgRes = await fetch(contentItem.image_url);
               if (imgRes.ok) {
                 const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
                 const imgType = imgRes.headers.get("content-type") || "image/png";
-                // 3. Upload to LinkedIn
                 const uploadRes = await fetch(uploadUrl, {
                   method: "PUT",
                   headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": imgType },
@@ -287,7 +331,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Build share content
       const shareContent: Record<string, unknown> = {
         shareCommentary: { text: contentItem.content_text },
       };

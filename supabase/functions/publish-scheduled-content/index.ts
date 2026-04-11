@@ -410,6 +410,37 @@ async function publishToLinkedIn(
   return { success: true, postId, postUrl };
 }
 
+// ─── Content Validation ─────────────────────────────────────────────
+const PLACEHOLDER_PATTERNS = [
+  /^lorem ipsum/i,
+  /^placeholder/i,
+  /^test post/i,
+  /^sample content/i,
+  /^\[.*\]$/,
+  /^TODO/i,
+  /^draft$/i,
+];
+
+const MIN_CONTENT_LENGTH = 20;
+
+function validateContentForPublish(contentText: string, platform: string): string | null {
+  if (!contentText || contentText.trim().length === 0) {
+    return "Content is empty. Cannot publish blank content.";
+  }
+  if (contentText.trim().length < MIN_CONTENT_LENGTH) {
+    return `Content too short (${contentText.trim().length} chars). Minimum ${MIN_CONTENT_LENGTH} required.`;
+  }
+  for (const pattern of PLACEHOLDER_PATTERNS) {
+    if (pattern.test(contentText.trim())) {
+      return "Content appears to be placeholder text.";
+    }
+  }
+  if (platform === "x" && contentText.length > 280) {
+    return `Content exceeds X's 280 character limit (${contentText.length} chars).`;
+  }
+  return null;
+}
+
 // ─── Max Staleness: fail posts stuck too long ───────────────────────
 const MAX_OVERDUE_HOURS = 48;
 
@@ -480,6 +511,19 @@ Deno.serve(async (req) => {
         }
 
         console.log(`[Publisher] Processing ${item.platform} content ${item.id} for user ${item.user_id}`);
+
+        // Pre-publish content validation
+        const contentValidationError = validateContentForPublish(item.content_text, item.platform);
+        if (contentValidationError) {
+          console.error(`[Publisher] Content validation failed for ${item.id}: ${contentValidationError}`);
+          await supabase.from('content').update({
+            status: 'failed', failure_reason: contentValidationError,
+          }).eq('id', item.id).eq('status', 'approved');
+          errors.push({ id: item.id, error: contentValidationError });
+          continue;
+        }
+
+        console.log(`[Publisher] Content validated | content=${item.id} | first120="${item.content_text.substring(0, 120)}"`);
 
         let result: PublishResult;
 

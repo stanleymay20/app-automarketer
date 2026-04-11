@@ -65,11 +65,10 @@ export default function Apps() {
                         <Sparkles className="h-4 w-4 mr-2" />
                         Generate Content
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled>Edit App (Coming Soon)</DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/analytics">View Analytics</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         className="text-destructive"
                         onClick={() => deleteApp.mutate(app.id)}
                       >
@@ -112,19 +111,15 @@ export default function Apps() {
                   )}
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 gap-2"
-                      onClick={() => generateContent(app)}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
+                    <Link to="/create" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        className="w-full gap-2"
+                      >
                         <Sparkles className="h-4 w-4" />
-                      )}
-                      Generate
-                    </Button>
+                        Create Post
+                      </Button>
+                    </Link>
                     {app.website_url && (
                       <Button variant="outline" size="icon" asChild>
                         <a href={app.website_url} target="_blank" rel="noopener noreferrer">
