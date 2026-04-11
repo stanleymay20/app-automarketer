@@ -66,6 +66,7 @@ export default function Content() {
   const deleteContent = useDeleteContent();
   const { generateContent, isGenerating } = useGenerateContent();
   const publishNow = usePublishNow();
+  const retryContent = useRetryContent();
 
   const contentIds = content?.map((c) => c.id) || [];
   const { data: scores } = useContentScores(contentIds.length > 0 ? contentIds : undefined);
@@ -264,6 +265,18 @@ export default function Content() {
                       <Badge variant="outline" className="text-muted-foreground text-xs">
                         Auto-publish coming soon
                       </Badge>
+                    )}
+                    {isFailed && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => retryContent.mutate(item.id)}
+                        disabled={retryContent.isPending}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Retry
+                      </Button>
                     )}
                     {item.status === "pending" && (
                       <Button 
