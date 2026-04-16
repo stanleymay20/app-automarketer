@@ -7,11 +7,42 @@ const corsHeaders = {
 };
 
 interface AppDetails {
+  id?: string;
   name: string;
   description: string | null;
   target_audience: string | null;
   brand_tone: string | null;
   platforms: string[];
+}
+
+async function fetchInsightDirectives(appId?: string): Promise<{ optimizeFor: string[]; avoid: string[] }> {
+  if (!appId) return { optimizeFor: [], avoid: [] };
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: insights } = await supabase
+      .from("learning_insights")
+      .select("insight_type, insight_text, confidence")
+      .eq("app_id", appId)
+      .order("confidence", { ascending: false })
+      .limit(10);
+
+    const optimizeFor: string[] = [];
+    const avoid: string[] = [];
+    for (const i of insights || []) {
+      if (["winning_angle", "winning_platform", "top_post_explanation"].includes(i.insight_type)) {
+        optimizeFor.push(i.insight_text);
+      } else if (["weak_cta", "weak_theme", "quality_issue"].includes(i.insight_type)) {
+        avoid.push(i.insight_text);
+      }
+    }
+    return { optimizeFor: optimizeFor.slice(0, 4), avoid: avoid.slice(0, 3) };
+  } catch (err) {
+    console.error("[generate-content] insight fetch failed:", err);
+    return { optimizeFor: [], avoid: [] };
+  }
 }
 
 const PLATFORM_DIRECTIVES: Record<string, string> = {
