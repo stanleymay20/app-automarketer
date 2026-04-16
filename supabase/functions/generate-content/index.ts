@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,11 +7,42 @@ const corsHeaders = {
 };
 
 interface AppDetails {
+  id?: string;
   name: string;
   description: string | null;
   target_audience: string | null;
   brand_tone: string | null;
   platforms: string[];
+}
+
+async function fetchInsightDirectives(appId?: string): Promise<{ optimizeFor: string[]; avoid: string[] }> {
+  if (!appId) return { optimizeFor: [], avoid: [] };
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: insights } = await supabase
+      .from("learning_insights")
+      .select("insight_type, insight_text, confidence")
+      .eq("app_id", appId)
+      .order("confidence", { ascending: false })
+      .limit(10);
+
+    const optimizeFor: string[] = [];
+    const avoid: string[] = [];
+    for (const i of insights || []) {
+      if (["winning_angle", "winning_platform", "top_post_explanation"].includes(i.insight_type)) {
+        optimizeFor.push(i.insight_text);
+      } else if (["weak_cta", "weak_theme", "quality_issue"].includes(i.insight_type)) {
+        avoid.push(i.insight_text);
+      }
+    }
+    return { optimizeFor: optimizeFor.slice(0, 4), avoid: avoid.slice(0, 3) };
+  } catch (err) {
+    console.error("[generate-content] insight fetch failed:", err);
+    return { optimizeFor: [], avoid: [] };
+  }
 }
 
 const PLATFORM_DIRECTIVES: Record<string, string> = {
@@ -111,6 +143,15 @@ serve(async (req) => {
     // Generate content for each platform separately for true platform-native output
     const allPosts: { platform: string; content: string }[] = [];
 
+    // Fetch learning insights for this app (Marketing Intelligence Loop)
+    const { optimizeFor, avoid } = await fetchInsightDirectives(app.id);
+    const insightBlock =
+      optimizeFor.length || avoid.length
+        ? `\n## LEARNED FROM PAST PERFORMANCE (real data from this app — prioritize these over generic best practices)\n${
+            optimizeFor.length ? `Optimize for:\n${optimizeFor.map((s) => `- ${s}`).join("\n")}\n` : ""
+          }${avoid.length ? `Avoid:\n${avoid.map((s) => `- ${s}`).join("\n")}\n` : ""}`
+        : "";
+
     for (const platform of app.platforms) {
       const normalizedPlatform = platform.toLowerCase()
         .replace("x (twitter)", "x")
@@ -129,7 +170,7 @@ Your job: Create ${postsPerPlatform} unique, high-performance posts for ${normal
 - Brand voice: ${app.brand_tone || "professional, authoritative"}
 
 ${platformDirective}
-
+${insightBlock}
 ## ABSOLUTE RULES (NEVER BREAK THESE)
 1. NEVER sound like AI-generated content or a marketing brochure
 2. NEVER use these words: "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless"

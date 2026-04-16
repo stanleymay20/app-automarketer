@@ -21,9 +21,10 @@ export function useGenerateLearningInsights() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["learning_insights"] });
+      const count = data?.results?.[0]?.count ?? data?.count ?? 0;
       toast({
-        title: "Insights generated",
-        description: `${data.count} new learning insights created.`,
+        title: "Insights refreshed",
+        description: `${count} insight${count === 1 ? "" : "s"} updated from your latest performance.`,
       });
     },
     onError: (error) => {

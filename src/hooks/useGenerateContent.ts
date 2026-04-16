@@ -43,6 +43,7 @@ export function useGenerateContent() {
       const { data, error } = await supabase.functions.invoke("generate-content", {
         body: {
           app: {
+            id: app.id,
             name: app.name,
             description: app.description,
             target_audience: app.target_audience,

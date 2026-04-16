@@ -153,7 +153,8 @@ Deno.serve(async (req) => {
         if (remaining <= 0) break;
 
         try {
-          const posts = await generateForApp(app as AppRow, LOVABLE_API_KEY, 1);
+          const insightDirectives = await fetchInsightDirectives(supabase, app.id);
+          const posts = await generateForApp(app as AppRow, LOVABLE_API_KEY, 1, insightDirectives);
 
           if (posts.length === 0) continue;
 
@@ -254,10 +255,38 @@ Deno.serve(async (req) => {
   }
 });
 
+async function fetchInsightDirectives(
+  supabase: ReturnType<typeof createClient>,
+  appId: string
+): Promise<{ optimizeFor: string[]; avoid: string[] }> {
+  try {
+    const { data: insights } = await supabase
+      .from("learning_insights")
+      .select("insight_type, insight_text, confidence")
+      .eq("app_id", appId)
+      .order("confidence", { ascending: false })
+      .limit(10);
+    const optimizeFor: string[] = [];
+    const avoid: string[] = [];
+    for (const i of insights || []) {
+      if (["winning_angle", "winning_platform", "top_post_explanation"].includes(i.insight_type)) {
+        optimizeFor.push(i.insight_text);
+      } else if (["weak_cta", "weak_theme", "quality_issue"].includes(i.insight_type)) {
+        avoid.push(i.insight_text);
+      }
+    }
+    return { optimizeFor: optimizeFor.slice(0, 4), avoid: avoid.slice(0, 3) };
+  } catch (e) {
+    console.error("[AutoGenerate] insight fetch failed:", e);
+    return { optimizeFor: [], avoid: [] };
+  }
+}
+
 async function generateForApp(
   app: AppRow,
   apiKey: string,
-  postsPerPlatform: number
+  postsPerPlatform: number,
+  directives: { optimizeFor: string[]; avoid: string[] } = { optimizeFor: [], avoid: [] }
 ): Promise<{ platform: string; content: string }[]> {
   const allPosts: { platform: string; content: string }[] = [];
 
@@ -277,7 +306,19 @@ async function generateForApp(
 - Brand voice: ${app.brand_tone || "professional, authoritative"}
 
 ${platformDirective}
-
+${
+  directives.optimizeFor.length || directives.avoid.length
+    ? `\n## LEARNED FROM PAST PERFORMANCE (real data from this app)\n${
+        directives.optimizeFor.length
+          ? `Optimize for:\n${directives.optimizeFor.map((s) => `- ${s}`).join("\n")}\n`
+          : ""
+      }${
+        directives.avoid.length
+          ? `Avoid:\n${directives.avoid.map((s) => `- ${s}`).join("\n")}\n`
+          : ""
+      }`
+    : ""
+}
 ## ABSOLUTE RULES
 1. NEVER sound like AI-generated content or a marketing brochure
 2. NEVER use: "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless"

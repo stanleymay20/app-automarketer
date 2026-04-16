@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { InsightsSection } from "@/components/analytics/InsightsSection";
 
 function formatNumber(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -197,6 +198,18 @@ export default function Analytics() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Marketing Intelligence Loop: What's Working / Improve / Why */}
+            <InsightsSection
+              appFilter={appFilter}
+              topPost={topPost ? {
+                content_text: topPost.content_text,
+                platform: topPost.platform,
+                impressions: topPost.impressions ?? 0,
+                engagements: topPost.engagements ?? 0,
+                app_id: topPost.app_id,
+              } : null}
+            />
           </>
         )}
       </div>
