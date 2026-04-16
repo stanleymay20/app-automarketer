@@ -73,9 +73,8 @@ export default function CreatePost() {
     const app = apps.find((a) => a.id === selectedAppId);
     if (!app) return;
     const result = await generateContent({
-      app,
+      app: { ...app, brand_tone: tone },
       topic: topic.trim(),
-      // Override tone for this single generation (does not mutate stored app)
     } as any);
     if (result) {
       setGeneratedIds(result.map((r: any) => r.id));
