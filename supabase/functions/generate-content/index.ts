@@ -170,7 +170,7 @@ Your job: Create ${postsPerPlatform} unique, high-performance posts for ${normal
 - Brand voice: ${app.brand_tone || "professional, authoritative"}
 
 ${platformDirective}
-
+${insightBlock}
 ## ABSOLUTE RULES (NEVER BREAK THESE)
 1. NEVER sound like AI-generated content or a marketing brochure
 2. NEVER use these words: "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless"
