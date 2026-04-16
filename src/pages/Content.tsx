@@ -391,14 +391,29 @@ export default function Content() {
   return (
     <DashboardLayout title="Content">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <p className="text-muted-foreground">Review and manage all generated marketing content.</p>
-          <Link to="/create">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Post
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {apps && apps.length > 1 && (
+              <select
+                value={appFilter}
+                onChange={(e) => setAppFilter(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Filter by app"
+              >
+                <option value="all">All apps</option>
+                {apps.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+            <Link to="/create">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create Post
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {isLoading ? (
@@ -411,7 +426,7 @@ export default function Content() {
           <Tabs defaultValue="all" className="w-full">
             <TabsList>
               <TabsTrigger value="all">
-                All ({content?.length || 0})
+                All ({appFilteredContent.length})
               </TabsTrigger>
               <TabsTrigger value="pending">
                 Pending ({filterContent("pending").length})
