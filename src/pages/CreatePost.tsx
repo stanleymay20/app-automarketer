@@ -37,6 +37,7 @@ const TONE_OPTIONS = [
 export default function CreatePost() {
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState("professional");
+  const [selectedAppId, setSelectedAppId] = useState<string>("");
   const [generatedIds, setGeneratedIds] = useState<string[]>([]);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
@@ -51,6 +52,11 @@ export default function CreatePost() {
   const { data: connections } = usePlatformConnections();
   const connectPlatform = useConnectPlatform();
 
+  // Default to first app once loaded
+  if (apps && apps.length > 0 && !selectedAppId) {
+    setSelectedAppId(apps[0].id);
+  }
+
   const generatedPosts = (allContent || []).filter((c) => generatedIds.includes(c.id));
   const contentIds = generatedPosts.map((p) => p.id);
   const { data: scores } = useContentScores(contentIds.length > 0 ? contentIds : undefined);
@@ -61,13 +67,14 @@ export default function CreatePost() {
   );
 
   const handleGenerate = async () => {
-    if (!apps || apps.length === 0 || !topic.trim()) return;
-    const app = apps[0];
+    if (!apps || apps.length === 0 || !topic.trim() || !selectedAppId) return;
+    const app = apps.find((a) => a.id === selectedAppId);
+    if (!app) return;
     const result = await generateContent({
-      ...app,
-      description: topic,
-      brand_tone: tone,
-    });
+      app,
+      topic: topic.trim(),
+      // Override tone for this single generation (does not mutate stored app)
+    } as any);
     if (result) {
       setGeneratedIds(result.map((r: any) => r.id));
     }
