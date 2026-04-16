@@ -306,7 +306,19 @@ async function generateForApp(
 - Brand voice: ${app.brand_tone || "professional, authoritative"}
 
 ${platformDirective}
-
+${
+  directives.optimizeFor.length || directives.avoid.length
+    ? `\n## LEARNED FROM PAST PERFORMANCE (real data from this app)\n${
+        directives.optimizeFor.length
+          ? `Optimize for:\n${directives.optimizeFor.map((s) => `- ${s}`).join("\n")}\n`
+          : ""
+      }${
+        directives.avoid.length
+          ? `Avoid:\n${directives.avoid.map((s) => `- ${s}`).join("\n")}\n`
+          : ""
+      }`
+    : ""
+}
 ## ABSOLUTE RULES
 1. NEVER sound like AI-generated content or a marketing brochure
 2. NEVER use: "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless"
