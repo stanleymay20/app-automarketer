@@ -1,8 +1,10 @@
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, MousePointerClick, Users, TrendingUp, TrendingDown, Loader2, BarChart3, ArrowRight } from "lucide-react";
 import { useContentAnalytics, useWeeklyTrend } from "@/hooks/useAnalytics";
 import { useContent } from "@/hooks/useContent";
+import { useApps } from "@/hooks/useApps";
 import { Badge } from "@/components/ui/badge";
 import {
   LineChart,
@@ -23,35 +25,55 @@ function formatNumber(num: number): string {
 }
 
 export default function Analytics() {
+  const [appFilter, setAppFilter] = useState<string>("all");
   const { data: analytics, isLoading: analyticsLoading } = useContentAnalytics();
   const { data: trend, isLoading: trendLoading } = useWeeklyTrend();
   const { data: content } = useContent();
+  const { data: apps } = useApps();
 
   const isLoading = analyticsLoading || trendLoading;
-  const hasData = (analytics?.totalPosts || 0) > 0;
 
-  // Find top post
-  const publishedPosts = (content || []).filter((c) => c.status === "published");
-  const topPost = publishedPosts.sort((a, b) => (b.impressions || 0) - (a.impressions || 0))[0];
+  // Per-app filtered metrics (client-side, from content)
+  const filtered = useMemo(() => {
+    const items = (content || []).filter(
+      (c) => c.status === "published" && (appFilter === "all" || c.app_id === appFilter)
+    );
+    const totalImpressions = items.reduce((s, c) => s + (c.impressions || 0), 0);
+    const totalEngagements = items.reduce((s, c) => s + (c.engagements || 0), 0);
+    const totalClicks = items.reduce((s, c) => s + (c.clicks || 0), 0);
+    return {
+      items,
+      totalPosts: items.length,
+      totalImpressions,
+      totalEngagements,
+      totalClicks,
+    };
+  }, [content, appFilter]);
 
+  const hasData = filtered.totalPosts > 0;
+  const topPost = filtered.items.slice().sort((a, b) => (b.impressions || 0) - (a.impressions || 0))[0];
+
+  // Stats: when filtering by app, hide week-over-week % (trend is global)
+  const showTrend = appFilter === "all";
   const stats = [
-    { label: "Views", value: analytics?.totalImpressions || 0, change: trend?.impressionsChange || 0, icon: Eye },
-    { label: "Engagements", value: analytics?.totalEngagements || 0, change: trend?.engagementsChange || 0, icon: MousePointerClick },
-    { label: "Clicks", value: analytics?.totalClicks || 0, change: trend?.clicksChange || 0, icon: Users },
+    { label: "Views", value: filtered.totalImpressions, change: showTrend ? (trend?.impressionsChange || 0) : 0, icon: Eye },
+    { label: "Engagements", value: filtered.totalEngagements, change: showTrend ? (trend?.engagementsChange || 0) : 0, icon: MousePointerClick },
+    { label: "Clicks", value: filtered.totalClicks, change: showTrend ? (trend?.clicksChange || 0) : 0, icon: Users },
   ];
 
-  const weeklyData = (trend?.weeklyData || []).map((w) => ({
-    name: new Date(w.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    views: w.impressions,
-    engagements: w.engagements,
-    clicks: w.clicks,
-  }));
+  const weeklyData = showTrend
+    ? (trend?.weeklyData || []).map((w) => ({
+        name: new Date(w.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        views: w.impressions,
+        engagements: w.engagements,
+        clicks: w.clicks,
+      }))
+    : [];
 
-  // Simple insight message
-  const engagementRate = (analytics?.totalImpressions || 0) > 0
-    ? ((analytics?.totalEngagements || 0) / (analytics?.totalImpressions || 1) * 100)
+  const engagementRate = filtered.totalImpressions > 0
+    ? (filtered.totalEngagements / filtered.totalImpressions) * 100
     : 0;
-  
+
   let insightMessage = "Start publishing to see how your content performs.";
   if (hasData) {
     if (engagementRate > 5) insightMessage = "🔥 Your content is performing great! Keep this momentum going.";
@@ -62,6 +84,21 @@ export default function Analytics() {
   return (
     <DashboardLayout title="Performance">
       <div className="space-y-6 max-w-3xl mx-auto">
+        {apps && apps.length > 1 && (
+          <div className="flex items-center justify-end">
+            <select
+              value={appFilter}
+              onChange={(e) => setAppFilter(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by app"
+            >
+              <option value="all">All apps</option>
+              {apps.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

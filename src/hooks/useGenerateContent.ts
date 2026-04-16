@@ -20,7 +20,10 @@ export function useGenerateContent() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: async (app: App) => {
+    mutationFn: async (input: App | { app: App; topic?: string }) => {
+      const app: App = "app" in input ? input.app : input;
+      const topic: string | undefined = "app" in input ? input.topic : undefined;
+
       if (!app.platforms || app.platforms.length === 0) {
         throw new Error("Please select at least one platform for this app");
       }
@@ -46,6 +49,7 @@ export function useGenerateContent() {
             brand_tone: app.brand_tone,
             platforms: app.platforms,
           },
+          topic: topic?.trim() || undefined,
           postsPerPlatform: 2,
         },
       });

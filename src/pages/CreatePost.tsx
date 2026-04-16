@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ const TONE_OPTIONS = [
 export default function CreatePost() {
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState("professional");
+  const [selectedAppId, setSelectedAppId] = useState<string>("");
   const [generatedIds, setGeneratedIds] = useState<string[]>([]);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
@@ -51,6 +52,13 @@ export default function CreatePost() {
   const { data: connections } = usePlatformConnections();
   const connectPlatform = useConnectPlatform();
 
+  // Default to first app once loaded
+  useEffect(() => {
+    if (apps && apps.length > 0 && !selectedAppId) {
+      setSelectedAppId(apps[0].id);
+    }
+  }, [apps, selectedAppId]);
+
   const generatedPosts = (allContent || []).filter((c) => generatedIds.includes(c.id));
   const contentIds = generatedPosts.map((p) => p.id);
   const { data: scores } = useContentScores(contentIds.length > 0 ? contentIds : undefined);
@@ -61,13 +69,13 @@ export default function CreatePost() {
   );
 
   const handleGenerate = async () => {
-    if (!apps || apps.length === 0 || !topic.trim()) return;
-    const app = apps[0];
+    if (!apps || apps.length === 0 || !topic.trim() || !selectedAppId) return;
+    const app = apps.find((a) => a.id === selectedAppId);
+    if (!app) return;
     const result = await generateContent({
-      ...app,
-      description: topic,
-      brand_tone: tone,
-    });
+      app: { ...app, brand_tone: tone },
+      topic: topic.trim(),
+    } as any);
     if (result) {
       setGeneratedIds(result.map((r: any) => r.id));
     }
@@ -114,13 +122,37 @@ export default function CreatePost() {
           Back to Home
         </Link>
 
-        {/* Step 1: Topic + Tone */}
+        {/* Step 1: App + Topic + Tone */}
         <Card>
           <CardContent className="p-5 space-y-4">
             <div>
               <h2 className="font-display text-lg font-semibold text-foreground">What do you want to post about?</h2>
-              <p className="text-sm text-muted-foreground mt-1">Describe your topic and we'll create platform-ready content.</p>
+              <p className="text-sm text-muted-foreground mt-1">Pick an app, describe your topic, and we'll create platform-ready content.</p>
             </div>
+
+            {/* App Selector */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">App</label>
+              <Select value={selectedAppId} onValueChange={setSelectedAppId} disabled={!apps?.length}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={apps?.length ? "Select an app" : "No apps yet"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {apps?.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="font-medium">{a.name}</span>
+                      {a.platforms && a.platforms.length > 0 && (
+                        <span className="text-muted-foreground ml-1.5 text-xs">— {a.platforms.join(", ")}</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {apps && apps.length > 1 && (
+                <p className="text-[11px] text-muted-foreground">Posts will be saved under the selected app only.</p>
+              )}
+            </div>
+
             <Textarea
               placeholder={placeholder}
               value={topic}
@@ -148,7 +180,7 @@ export default function CreatePost() {
 
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || !topic.trim() || !apps?.length}
+              disabled={isGenerating || !topic.trim() || !apps?.length || !selectedAppId}
               className="w-full gap-2"
               size="lg"
             >

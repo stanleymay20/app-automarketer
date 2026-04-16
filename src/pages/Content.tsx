@@ -63,6 +63,7 @@ export default function Content() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [appFilter, setAppFilter] = useState<string>("all");
   const { data: content, isLoading } = useContent();
   const { data: apps } = useApps();
   const { data: connections } = usePlatformConnections();
@@ -81,11 +82,18 @@ export default function Content() {
     connections?.filter((c) => c.connected).map((c) => c.platform) || []
   );
 
+  // Apply app filter first, then status
+  const appFilteredContent = !content
+    ? []
+    : appFilter === "all"
+      ? content
+      : content.filter((c) => c.app_id === appFilter);
+
   const filterContent = (status?: string) => {
-    if (!content) return [];
-    if (!status || status === "all") return content;
-    if (status === "failed") return content.filter((c) => c.status === "failed");
-    return content.filter((c) => c.status === status);
+    if (!appFilteredContent) return [];
+    if (!status || status === "all") return appFilteredContent;
+    if (status === "failed") return appFilteredContent.filter((c) => c.status === "failed");
+    return appFilteredContent.filter((c) => c.status === status);
   };
 
   const handleStartEdit = (id: string, currentText: string) => {
@@ -383,14 +391,29 @@ export default function Content() {
   return (
     <DashboardLayout title="Content">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <p className="text-muted-foreground">Review and manage all generated marketing content.</p>
-          <Link to="/create">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Post
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {apps && apps.length > 1 && (
+              <select
+                value={appFilter}
+                onChange={(e) => setAppFilter(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Filter by app"
+              >
+                <option value="all">All apps</option>
+                {apps.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+            <Link to="/create">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create Post
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {isLoading ? (
@@ -403,7 +426,7 @@ export default function Content() {
           <Tabs defaultValue="all" className="w-full">
             <TabsList>
               <TabsTrigger value="all">
-                All ({content?.length || 0})
+                All ({appFilteredContent.length})
               </TabsTrigger>
               <TabsTrigger value="pending">
                 Pending ({filterContent("pending").length})
@@ -422,7 +445,7 @@ export default function Content() {
             </TabsList>
 
             <TabsContent value="all" className="mt-6">
-              {renderContentList(content)}
+              {renderContentList(appFilteredContent)}
             </TabsContent>
             <TabsContent value="pending" className="mt-6">
               {renderContentList(filterContent("pending"))}

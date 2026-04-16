@@ -97,9 +97,10 @@ serve(async (req) => {
   }
 
   try {
-    const { app, postsPerPlatform = 2 } = await req.json() as {
+    const { app, postsPerPlatform = 2, topic } = await req.json() as {
       app: AppDetails;
       postsPerPlatform?: number;
+      topic?: string;
     };
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -140,11 +141,11 @@ ${platformDirective}
 8. Content must be PRODUCTION-READY — publishable as-is with zero edits`;
 
       const userPrompt = `Create ${postsPerPlatform} unique ${normalizedPlatform.toUpperCase()} posts for ${app.name}.
-
-Each post must have a completely different angle/topic. Suggested angles:
-- Challenge a common assumption in the industry
+${topic ? `\n## TOPIC FOCUS (MANDATORY)\nThe user wants posts specifically about: "${topic}"\nEvery post MUST be on this topic. Do NOT drift to generic brand messaging.\n` : ""}
+Each post must have a completely different angle${topic ? " on the topic above" : ""}. Suggested angles:
+- Challenge a common assumption
 - Share a specific insight about ${app.target_audience || "the target audience"}'s biggest pain point
-- Describe a transformation (before → after) that ${app.name} enables
+- Describe a transformation (before → after)
 - Make a bold claim backed by logic
 
 Return ONLY a JSON array:
