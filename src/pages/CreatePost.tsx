@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,11 @@ export default function CreatePost() {
   const connectPlatform = useConnectPlatform();
 
   // Default to first app once loaded
-  if (apps && apps.length > 0 && !selectedAppId) {
-    setSelectedAppId(apps[0].id);
-  }
+  useEffect(() => {
+    if (apps && apps.length > 0 && !selectedAppId) {
+      setSelectedAppId(apps[0].id);
+    }
+  }, [apps, selectedAppId]);
 
   const generatedPosts = (allContent || []).filter((c) => generatedIds.includes(c.id));
   const contentIds = generatedPosts.map((p) => p.id);
