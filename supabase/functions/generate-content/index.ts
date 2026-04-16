@@ -143,6 +143,15 @@ serve(async (req) => {
     // Generate content for each platform separately for true platform-native output
     const allPosts: { platform: string; content: string }[] = [];
 
+    // Fetch learning insights for this app (Marketing Intelligence Loop)
+    const { optimizeFor, avoid } = await fetchInsightDirectives(app.id);
+    const insightBlock =
+      optimizeFor.length || avoid.length
+        ? `\n## LEARNED FROM PAST PERFORMANCE (real data from this app — prioritize these over generic best practices)\n${
+            optimizeFor.length ? `Optimize for:\n${optimizeFor.map((s) => `- ${s}`).join("\n")}\n` : ""
+          }${avoid.length ? `Avoid:\n${avoid.map((s) => `- ${s}`).join("\n")}\n` : ""}`
+        : "";
+
     for (const platform of app.platforms) {
       const normalizedPlatform = platform.toLowerCase()
         .replace("x (twitter)", "x")
