@@ -13,6 +13,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data: apps, isLoading } = useApps();
   const { data: content } = useContent();
+  const appNameById = new Map((apps || []).map((a) => [a.id, a.name]));
 
   if (!isLoading && apps && apps.length === 0) {
     return <Navigate to="/onboarding" replace />;
@@ -137,7 +138,10 @@ export default function Dashboard() {
                       <StatusIcon className={`h-4 w-4 shrink-0 ${config.color}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground truncate">{post.content_text}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {appNameById.get(post.app_id) || "Unknown app"}
+                          </Badge>
                           <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                             {post.platform}
                           </Badge>
