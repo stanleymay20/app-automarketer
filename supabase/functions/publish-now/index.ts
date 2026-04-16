@@ -385,6 +385,16 @@ Deno.serve(async (req) => {
       external_url: externalUrl,
     }).eq("id", content_id).eq("status", "approved").is("published_at", null);
 
+    // Fire-and-forget: regenerate learning insights for this app (Marketing Intelligence Loop)
+    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-learning-insights`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ app_id, user_id }),
+    }).catch((e) => console.error("[ManualPublish] Insight refresh failed:", e));
+
     console.log(`[ManualPublish] Success | content=${content_id} platform=${normalizedPlatform} url=${externalUrl}`);
 
     return new Response(JSON.stringify({ 
