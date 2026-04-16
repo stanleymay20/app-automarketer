@@ -84,6 +84,21 @@ export default function Analytics() {
   return (
     <DashboardLayout title="Performance">
       <div className="space-y-6 max-w-3xl mx-auto">
+        {apps && apps.length > 1 && (
+          <div className="flex items-center justify-end">
+            <select
+              value={appFilter}
+              onChange={(e) => setAppFilter(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by app"
+            >
+              <option value="all">All apps</option>
+              {apps.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
