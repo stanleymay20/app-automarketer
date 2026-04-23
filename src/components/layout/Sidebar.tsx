@@ -11,6 +11,7 @@ import {
   Bell,
   LogOut,
   Send,
+  DollarSign,
   X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -23,6 +24,7 @@ const navItems = [
   { icon: FileText, label: "Create Post", path: "/create" },
   { icon: AppWindow, label: "Content", path: "/content" },
   { icon: BarChart3, label: "Performance", path: "/analytics" },
+  { icon: DollarSign, label: "Revenue", path: "/revenue" },
   { icon: Calendar, label: "Calendar", path: "/calendar" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
