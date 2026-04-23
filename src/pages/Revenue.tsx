@@ -48,7 +48,7 @@ export default function Revenue() {
   const appName = (id: string) => apps.find((a) => a.id === id)?.name || "—";
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Revenue">
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
