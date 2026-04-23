@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,7 +64,20 @@ export default function Content() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
-  const [appFilter, setAppFilter] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [appFilter, setAppFilter] = useState<string>(searchParams.get("app") || "all");
+  useEffect(() => {
+    const urlApp = searchParams.get("app") || "all";
+    if (urlApp !== appFilter) setAppFilter(urlApp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const handleAppFilterChange = (val: string) => {
+    setAppFilter(val);
+    const next = new URLSearchParams(searchParams);
+    if (val === "all") next.delete("app");
+    else next.set("app", val);
+    setSearchParams(next, { replace: true });
+  };
   const { data: content, isLoading } = useContent();
   const { data: apps } = useApps();
   const { data: connections } = usePlatformConnections();
