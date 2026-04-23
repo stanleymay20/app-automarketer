@@ -66,7 +66,10 @@ export default function Apps() {
                         Generate Content
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/analytics">View Analytics</Link>
+                        <Link to={`/content?app=${app.id}`}>View Content</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={`/analytics?app=${app.id}`}>View Analytics</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
@@ -111,11 +114,14 @@ export default function Apps() {
                   )}
 
                   <div className="flex gap-2">
+                    <Link to={`/content?app=${app.id}`} className="flex-1">
+                      <Button variant="outline" className="w-full gap-2">
+                        <AppWindow className="h-4 w-4" />
+                        View Content
+                      </Button>
+                    </Link>
                     <Link to="/create" className="flex-1">
-                      <Button 
-                        variant="outline" 
-                        className="w-full gap-2"
-                      >
+                      <Button className="w-full gap-2">
                         <Sparkles className="h-4 w-4" />
                         Create Post
                       </Button>

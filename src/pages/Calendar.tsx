@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useContent } from "@/hooks/useContent";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, isSameMonth, isSameDay, parseISO } from "date-fns";
+import { useApps } from "@/hooks/useApps";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -18,7 +19,9 @@ const statusColors: Record<string, string> = {
 
 export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [appFilter, setAppFilter] = useState<string>("all");
   const { data: content } = useContent();
+  const { data: apps } = useApps();
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -28,7 +31,8 @@ export default function Calendar() {
   const contentByDay = useMemo(() => {
     const map = new Map<string, typeof content>();
     if (!content) return map;
-    for (const item of content) {
+    const filtered = appFilter === "all" ? content : content.filter((c) => c.app_id === appFilter);
+    for (const item of filtered) {
       const dateStr = item.scheduled_for
         ? format(parseISO(item.scheduled_for), "yyyy-MM-dd")
         : item.published_at
@@ -41,7 +45,7 @@ export default function Calendar() {
       }
     }
     return map;
-  }, [content]);
+  }, [content, appFilter]);
 
   return (
     <DashboardLayout title="Calendar">
@@ -58,12 +62,27 @@ export default function Calendar() {
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-          <Link to="/content">
-            <Button variant="outline" className="gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              View Content
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {apps && apps.length > 1 && (
+              <select
+                value={appFilter}
+                onChange={(e) => setAppFilter(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Filter by app"
+              >
+                <option value="all">All apps</option>
+                {apps.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+            <Link to="/content">
+              <Button variant="outline" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                View Content
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card className="shadow-card overflow-hidden">

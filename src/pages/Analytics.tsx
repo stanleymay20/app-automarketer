@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, MousePointerClick, Users, TrendingUp, TrendingDown, Loader2, BarChart3, ArrowRight } from "lucide-react";
@@ -26,7 +27,20 @@ function formatNumber(num: number): string {
 }
 
 export default function Analytics() {
-  const [appFilter, setAppFilter] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [appFilter, setAppFilter] = useState<string>(searchParams.get("app") || "all");
+  useEffect(() => {
+    const urlApp = searchParams.get("app") || "all";
+    if (urlApp !== appFilter) setAppFilter(urlApp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const handleAppFilterChange = (val: string) => {
+    setAppFilter(val);
+    const next = new URLSearchParams(searchParams);
+    if (val === "all") next.delete("app");
+    else next.set("app", val);
+    setSearchParams(next, { replace: true });
+  };
   const { data: analytics, isLoading: analyticsLoading } = useContentAnalytics();
   const { data: trend, isLoading: trendLoading } = useWeeklyTrend();
   const { data: content } = useContent();
@@ -53,6 +67,28 @@ export default function Analytics() {
 
   const hasData = filtered.totalPosts > 0;
   const topPost = filtered.items.slice().sort((a, b) => (b.impressions || 0) - (a.impressions || 0))[0];
+
+  // Per-app breakdown (only when viewing "all apps" and multiple apps exist)
+  const appBreakdown = useMemo(() => {
+    if (appFilter !== "all" || !apps || apps.length < 2) return [];
+    const published = (content || []).filter((c) => c.status === "published");
+    return apps.map((a) => {
+      const items = published.filter((c) => c.app_id === a.id);
+      const impressions = items.reduce((s, c) => s + (c.impressions || 0), 0);
+      const engagements = items.reduce((s, c) => s + (c.engagements || 0), 0);
+      const clicks = items.reduce((s, c) => s + (c.clicks || 0), 0);
+      const rate = impressions > 0 ? (engagements / impressions) * 100 : 0;
+      return {
+        id: a.id,
+        name: a.name,
+        posts: items.length,
+        impressions,
+        engagements,
+        clicks,
+        rate,
+      };
+    }).sort((a, b) => b.impressions - a.impressions);
+  }, [apps, content, appFilter]);
 
   // Stats: when filtering by app, hide week-over-week % (trend is global)
   const showTrend = appFilter === "all";
@@ -89,7 +125,7 @@ export default function Analytics() {
           <div className="flex items-center justify-end">
             <select
               value={appFilter}
-              onChange={(e) => setAppFilter(e.target.value)}
+              onChange={(e) => handleAppFilterChange(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label="Filter by app"
             >
@@ -194,6 +230,45 @@ export default function Analytics() {
                     <Badge variant="secondary" className="text-[10px]">{topPost.platform}</Badge>
                     <span>{formatNumber(topPost.impressions || 0)} views</span>
                     <span>{formatNumber(topPost.engagements || 0)} engagements</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Per-app breakdown (only when viewing all apps) */}
+            {appBreakdown.length > 0 && (
+              <Card className="shadow-card">
+                <CardContent className="p-4">
+                  <h3 className="font-display text-sm font-semibold mb-3">Per-App Performance</h3>
+                  <div className="overflow-x-auto -mx-4 px-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                          <th className="py-2 pr-3 font-medium">App</th>
+                          <th className="py-2 px-2 font-medium text-right">Posts</th>
+                          <th className="py-2 px-2 font-medium text-right">Views</th>
+                          <th className="py-2 px-2 font-medium text-right">Engage.</th>
+                          <th className="py-2 px-2 font-medium text-right">Clicks</th>
+                          <th className="py-2 pl-2 font-medium text-right">Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {appBreakdown.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b border-border/40 last:border-0 hover:bg-muted/30 cursor-pointer"
+                            onClick={() => handleAppFilterChange(row.id)}
+                          >
+                            <td className="py-2 pr-3 font-medium text-foreground truncate max-w-[120px]">{row.name}</td>
+                            <td className="py-2 px-2 text-right text-muted-foreground">{row.posts}</td>
+                            <td className="py-2 px-2 text-right">{formatNumber(row.impressions)}</td>
+                            <td className="py-2 px-2 text-right">{formatNumber(row.engagements)}</td>
+                            <td className="py-2 px-2 text-right">{formatNumber(row.clicks)}</td>
+                            <td className="py-2 pl-2 text-right text-muted-foreground">{row.rate.toFixed(1)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
