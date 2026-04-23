@@ -50,3 +50,12 @@ verify_jwt = false
 
 [functions.linkedin-publish-post]
 verify_jwt = false
+
+[functions.track-click]
+verify_jwt = false
+
+[functions.capture-lead]
+verify_jwt = false
+
+[functions.conversion-webhook]
+verify_jwt = false
