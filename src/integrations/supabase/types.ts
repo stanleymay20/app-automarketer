@@ -74,6 +74,11 @@ export type Database = {
           description: string | null
           engagements_count: number | null
           id: string
+          landing_cta_label: string | null
+          landing_enabled: boolean
+          landing_headline: string | null
+          landing_slug: string | null
+          landing_subheadline: string | null
           name: string
           platforms: string[] | null
           posts_count: number | null
@@ -90,6 +95,11 @@ export type Database = {
           description?: string | null
           engagements_count?: number | null
           id?: string
+          landing_cta_label?: string | null
+          landing_enabled?: boolean
+          landing_headline?: string | null
+          landing_slug?: string | null
+          landing_subheadline?: string | null
           name: string
           platforms?: string[] | null
           posts_count?: number | null
@@ -106,6 +116,11 @@ export type Database = {
           description?: string | null
           engagements_count?: number | null
           id?: string
+          landing_cta_label?: string | null
+          landing_enabled?: boolean
+          landing_headline?: string | null
+          landing_slug?: string | null
+          landing_subheadline?: string | null
           name?: string
           platforms?: string[] | null
           posts_count?: number | null
@@ -253,6 +268,54 @@ export type Database = {
           },
         ]
       }
+      click_events: {
+        Row: {
+          app_id: string | null
+          content_id: string | null
+          created_at: string
+          id: string
+          ip_hash: string | null
+          referrer: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          content_id?: string | null
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          content_id?: string | null
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "click_events_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "click_events_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content: {
         Row: {
           app_id: string
@@ -368,6 +431,67 @@ export type Database = {
           },
         ]
       }
+      conversions: {
+        Row: {
+          amount: number
+          app_id: string
+          created_at: string
+          currency: string
+          id: string
+          lead_id: string
+          notes: string | null
+          source: string
+          source_content_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          app_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          source?: string
+          source_content_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          app_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          source?: string
+          source_content_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversions_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversions_source_content_id_fkey"
+            columns: ["source_content_id"]
+            isOneToOne: false
+            referencedRelation: "content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       growth_goals: {
         Row: {
           app_id: string
@@ -414,6 +538,66 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          app_id: string
+          created_at: string
+          email: string
+          id: string
+          lead_score: number
+          name: string | null
+          notes: string | null
+          platform: string | null
+          source_content_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          created_at?: string
+          email: string
+          id?: string
+          lead_score?: number
+          name?: string | null
+          notes?: string | null
+          platform?: string | null
+          source_content_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          lead_score?: number
+          name?: string | null
+          notes?: string | null
+          platform?: string | null
+          source_content_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_source_content_id_fkey"
+            columns: ["source_content_id"]
+            isOneToOne: false
+            referencedRelation: "content"
             referencedColumns: ["id"]
           },
         ]
