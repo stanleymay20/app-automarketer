@@ -235,6 +235,45 @@ export default function Analytics() {
               </Card>
             )}
 
+            {/* Per-app breakdown (only when viewing all apps) */}
+            {appBreakdown.length > 0 && (
+              <Card className="shadow-card">
+                <CardContent className="p-4">
+                  <h3 className="font-display text-sm font-semibold mb-3">Per-App Performance</h3>
+                  <div className="overflow-x-auto -mx-4 px-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                          <th className="py-2 pr-3 font-medium">App</th>
+                          <th className="py-2 px-2 font-medium text-right">Posts</th>
+                          <th className="py-2 px-2 font-medium text-right">Views</th>
+                          <th className="py-2 px-2 font-medium text-right">Engage.</th>
+                          <th className="py-2 px-2 font-medium text-right">Clicks</th>
+                          <th className="py-2 pl-2 font-medium text-right">Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {appBreakdown.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b border-border/40 last:border-0 hover:bg-muted/30 cursor-pointer"
+                            onClick={() => handleAppFilterChange(row.id)}
+                          >
+                            <td className="py-2 pr-3 font-medium text-foreground truncate max-w-[120px]">{row.name}</td>
+                            <td className="py-2 px-2 text-right text-muted-foreground">{row.posts}</td>
+                            <td className="py-2 px-2 text-right">{formatNumber(row.impressions)}</td>
+                            <td className="py-2 px-2 text-right">{formatNumber(row.engagements)}</td>
+                            <td className="py-2 px-2 text-right">{formatNumber(row.clicks)}</td>
+                            <td className="py-2 pl-2 text-right text-muted-foreground">{row.rate.toFixed(1)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Marketing Intelligence Loop: What's Working / Improve / Why */}
             <InsightsSection
               appFilter={appFilter}
