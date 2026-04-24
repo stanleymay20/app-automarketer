@@ -106,20 +106,38 @@ export function useConnectPlatform() {
         if (!result.url) throw new Error("Provider did not return an authorization URL");
 
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const isEmbedded = window.self !== window.top;
+        let isEmbedded = false;
+        try {
+          isEmbedded = window.self !== window.top;
+        } catch {
+          isEmbedded = true;
+        }
         console.info("[OAuthStart] Launching provider", {
           platform,
           appId: appId || null,
           origin: window.location.origin,
-          mode: isMobile || isEmbedded ? "top-window" : "popup",
+          mode: isMobile || isEmbedded ? "new-tab" : "popup",
           isEmbedded,
         });
 
-        if (isMobile || isEmbedded) {
-          try {
-            window.top?.location.assign(result.url);
-          } catch {
-            window.location.assign(result.url);
+        // When embedded in an iframe (Lovable preview), X/LinkedIn block framing.
+        // Always open OAuth in a brand-new top-level tab so the provider page renders.
+        if (isEmbedded || isMobile) {
+          const newTab = window.open(result.url, "_blank");
+          if (!newTab) {
+            // Popup blocked: try to escape iframe; if cross-origin throws, navigate self.
+            try {
+              if (window.top && window.top !== window.self) {
+                window.top.location.href = result.url;
+              } else {
+                window.location.href = result.url;
+              }
+            } catch {
+              window.location.href = result.url;
+            }
+            toast.message("Opening sign-in...", {
+              description: "If nothing happens, allow popups for this site.",
+            });
           }
           return null;
         }
