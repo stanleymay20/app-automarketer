@@ -55,8 +55,24 @@ export function useGenerateContent() {
         },
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        const msg = (error as any)?.message || "";
+        const ctx = (error as any)?.context;
+        const status = ctx?.status ?? ctx?.response?.status;
+        if (status === 402 || /402|credits? exhausted/i.test(msg)) {
+          throw new Error("AI credits exhausted. Please top up in Settings → Workspace → Usage.");
+        }
+        if (status === 429 || /429|rate limit/i.test(msg)) {
+          throw new Error("AI is rate-limited right now. Please wait a moment and try again.");
+        }
+        throw error;
+      }
+      if (data?.error) {
+        if (/credits? exhausted/i.test(data.error)) {
+          throw new Error("AI credits exhausted. Please top up in Settings → Workspace → Usage.");
+        }
+        throw new Error(data.error);
+      }
 
       const posts = data.posts as GeneratedPost[];
       
