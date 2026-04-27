@@ -492,6 +492,116 @@ export type Database = {
           },
         ]
       }
+      grant_applications: {
+        Row: {
+          answers_json: Json | null
+          created_at: string
+          generated_pitch: string | null
+          grant_id: string
+          id: string
+          notes: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers_json?: Json | null
+          created_at?: string
+          generated_pitch?: string | null
+          grant_id: string
+          id?: string
+          notes?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers_json?: Json | null
+          created_at?: string
+          generated_pitch?: string | null
+          grant_id?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grant_applications_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grants: {
+        Row: {
+          country: string | null
+          created_at: string
+          deadline: string | null
+          description: string | null
+          eligibility_summary: string | null
+          enriched_at: string | null
+          fit_reasoning: string | null
+          fit_score: number
+          funding_amount: string | null
+          id: string
+          provider: string | null
+          source: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          eligibility_summary?: string | null
+          enriched_at?: string | null
+          fit_reasoning?: string | null
+          fit_score?: number
+          funding_amount?: string | null
+          id?: string
+          provider?: string | null
+          source?: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          eligibility_summary?: string | null
+          enriched_at?: string | null
+          fit_reasoning?: string | null
+          fit_score?: number
+          funding_amount?: string | null
+          id?: string
+          provider?: string | null
+          source?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       growth_goals: {
         Row: {
           app_id: string
