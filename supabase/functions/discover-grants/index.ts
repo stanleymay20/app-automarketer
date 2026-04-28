@@ -47,10 +47,29 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    let body: { profile?: string; focus?: string } = {};
+    let body: { app_id?: string; profile?: string; focus?: string } = {};
     try { body = await req.json(); } catch (_) {}
-    const profile = body.profile?.trim() || "Early-stage AI/SaaS startup, founder-led, based in Germany (Berlin), MSc student building a marketing automation product.";
-    const focus = body.focus?.trim() || "Germany and EU non-dilutive grants, accelerators, and innovation funding for AI/SaaS startups in 2026 (EXIST, Berlin Startup Scholarship, EIC Accelerator, Horizon Europe, Bundesregierung programs, etc.)";
+    if (!body.app_id) {
+      return new Response(JSON.stringify({ error: "app_id required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const admin0 = createClient(supabaseUrl, serviceKey);
+    const { data: app, error: appErr } = await admin0
+      .from("apps")
+      .select("name, description, target_audience, primary_goal, website_url")
+      .eq("id", body.app_id)
+      .eq("user_id", userId)
+      .single();
+    if (appErr || !app) {
+      return new Response(JSON.stringify({ error: "App not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const profile = body.profile?.trim() || `Early-stage founder building "${app.name}". ${app.description ?? ""} Target audience: ${app.target_audience ?? "n/a"}. Primary goal: ${app.primary_goal ?? "n/a"}. Website: ${app.website_url ?? "n/a"}. Based in Germany (Berlin).`;
+    const focus = body.focus?.trim() || `Germany and EU non-dilutive grants, accelerators, and innovation funding relevant specifically to "${app.name}" in 2026 (EXIST, Berlin Startup Scholarship, EIC Accelerator, Horizon Europe, Bundesregierung programs, sector-specific grants).`;
 
     // Perplexity structured search
     const prompt = `Find 8-12 currently open or upcoming funding opportunities matching this founder profile:
@@ -118,17 +137,18 @@ Only include opportunities that are real and currently accepting (or will accept
     let parsed: { grants: DiscoveredGrant[] } = { grants: [] };
     try { parsed = JSON.parse(content); } catch (e) { console.error("Parse error", e, content); }
 
-    const admin = createClient(supabaseUrl, serviceKey);
+    const admin = admin0;
     const inserted: any[] = [];
     const skipped: string[] = [];
 
     for (const g of parsed.grants ?? []) {
       if (!g.url || !g.title) continue;
-      // dedupe by user + url
+      // dedupe by user + app + url
       const { data: existing } = await admin
         .from("grants")
         .select("id")
         .eq("user_id", userId)
+        .eq("app_id", body.app_id)
         .eq("url", g.url)
         .maybeSingle();
       if (existing) {
@@ -139,6 +159,7 @@ Only include opportunities that are real and currently accepting (or will accept
         .from("grants")
         .insert({
           user_id: userId,
+          app_id: body.app_id,
           title: g.title,
           provider: g.provider ?? null,
           country: g.country ?? null,
