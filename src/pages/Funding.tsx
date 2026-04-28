@@ -149,7 +149,7 @@ export default function Funding() {
                   <Sparkles className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                   <p className="font-medium">No grants yet</p>
                   <p className="mb-4 text-sm text-muted-foreground">Run discovery to pull in matching German & EU grants.</p>
-                  <Button onClick={() => discover.mutate()} disabled={discover.isPending}>
+                  <Button onClick={() => selectedAppId && discover.mutate(selectedAppId)} disabled={!selectedAppId || discover.isPending}>
                     {discover.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
                     Discover grants
                   </Button>
