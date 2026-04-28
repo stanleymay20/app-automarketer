@@ -31,13 +31,28 @@ export function useGrantApplications() {
   });
 }
 
+async function parseFnError(error: any): Promise<string> {
+  try {
+    const ctx = error?.context;
+    if (ctx && typeof ctx.json === "function") {
+      const body = await ctx.json();
+      if (body?.error) {
+        if (ctx.status === 402) return "AI credits exhausted. Add credits in Settings → Workspace → Usage.";
+        if (ctx.status === 429) return "Rate limited. Please wait a moment and try again.";
+        return body.error;
+      }
+    }
+  } catch {}
+  return error?.message ?? "Unknown error";
+}
+
 export function useDiscoverGrants() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("discover-grants", { body: {} });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(await parseFnError(error));
       return data;
     },
     onSuccess: (data) => {
@@ -54,7 +69,7 @@ export function useQualifyGrant() {
   return useMutation({
     mutationFn: async (grant_id: string) => {
       const { data, error } = await supabase.functions.invoke("qualify-grant", { body: { grant_id } });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(await parseFnError(error));
       return data;
     },
     onSuccess: () => {
@@ -71,7 +86,7 @@ export function useGenerateApplication() {
   return useMutation({
     mutationFn: async (grant_id: string) => {
       const { data, error } = await supabase.functions.invoke("generate-grant-application", { body: { grant_id } });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(await parseFnError(error));
       return data;
     },
     onSuccess: () => {
