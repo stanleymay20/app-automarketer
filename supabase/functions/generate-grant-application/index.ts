@@ -108,27 +108,27 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    let app;
+    let application;
     if (existing) {
       const { data, error } = await admin
         .from("grant_applications")
-        .update({ generated_pitch: parsed.pitch, answers_json: { items: parsed.answers }, status: "draft" })
+        .update({ generated_pitch: parsed.pitch, answers_json: { items: parsed.answers }, status: "draft", app_id: grant.app_id ?? null })
         .eq("id", existing.id)
         .select()
         .single();
       if (error) throw error;
-      app = data;
+      application = data;
     } else {
       const { data, error } = await admin
         .from("grant_applications")
-        .insert({ user_id: userId, grant_id, generated_pitch: parsed.pitch, answers_json: { items: parsed.answers }, status: "draft" })
+        .insert({ user_id: userId, grant_id, app_id: grant.app_id ?? null, generated_pitch: parsed.pitch, answers_json: { items: parsed.answers }, status: "draft" })
         .select()
         .single();
       if (error) throw error;
-      app = data;
+      application = data;
     }
 
-    return new Response(JSON.stringify({ application: app }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ application }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("generate-grant-application error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
