@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import OAuthCallback from "./pages/OAuthCallback";
 import Revenue from "./pages/Revenue";
+import Funding from "./pages/Funding";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 
@@ -58,6 +59,7 @@ function AppRoutes() {
        <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
        <Route path="/weekly-reports" element={<ProtectedRoute><WeeklyReports /></ProtectedRoute>} />
        <Route path="/revenue" element={<ProtectedRoute><Revenue /></ProtectedRoute>} />
+       <Route path="/funding" element={<ProtectedRoute><Funding /></ProtectedRoute>} />
        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/lp/:slug" element={<LandingPage />} />
       <Route path="*" element={<NotFound />} />
