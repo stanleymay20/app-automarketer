@@ -61,9 +61,19 @@ Deno.serve(async (req) => {
       console.warn("Firecrawl scrape failed", e);
     }
 
-    // 2. Get user app context for fit scoring
-    const { data: apps } = await admin.from("apps").select("name, description, target_audience, primary_goal").eq("user_id", userId).limit(3);
-    const appContext = (apps ?? []).map(a => `- ${a.name}: ${a.description ?? ""} (audience: ${a.target_audience ?? "n/a"}, goal: ${a.primary_goal ?? "n/a"})`).join("\n");
+    // 2. Get THIS grant's app context for fit scoring (fall back to first app for legacy)
+    let appRow: any = null;
+    if (grant.app_id) {
+      const { data } = await admin.from("apps").select("name, description, target_audience, primary_goal").eq("id", grant.app_id).eq("user_id", userId).maybeSingle();
+      appRow = data;
+    }
+    if (!appRow) {
+      const { data } = await admin.from("apps").select("name, description, target_audience, primary_goal").eq("user_id", userId).limit(1).maybeSingle();
+      appRow = data;
+    }
+    const appContext = appRow
+      ? `- ${appRow.name}: ${appRow.description ?? ""} (audience: ${appRow.target_audience ?? "n/a"}, goal: ${appRow.primary_goal ?? "n/a"})`
+      : "";
 
     // 3. AI fit scoring via Lovable AI
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

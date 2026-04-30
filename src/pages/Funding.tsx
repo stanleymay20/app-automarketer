@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,6 +60,8 @@ export default function Funding() {
   const [openDraft, setOpenDraft] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newGrant, setNewGrant] = useState({ title: "", url: "", provider: "", deadline: "" });
+  const [busyGrantId, setBusyGrantId] = useState<{ id: string; action: "qualify" | "generate" } | null>(null);
+  const pitchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const opportunities = grants.filter(g => !["applied", "won", "lost", "dismissed"].includes(g.status));
   const drafts = applications.filter(a => a.status === "draft" || a.status === "approved");
@@ -73,14 +75,23 @@ export default function Funding() {
     return [];
   };
 
-  const handleApply = (app: any) => {
+  const runQualify = (id: string) => {
+    setBusyGrantId({ id, action: "qualify" });
+    qualify.mutate(id, { onSettled: () => setBusyGrantId(null) });
+  };
+  const runGenerate = (id: string) => {
+    setBusyGrantId({ id, action: "generate" });
+    generate.mutate(id, { onSettled: () => setBusyGrantId(null) });
+  };
+
+  const handleApply = async (app: any) => {
     const grant = app.grants;
     const items = getItems(app);
     const text = `${app.generated_pitch}\n\n---\n\n${items.map((q) => `Q: ${q.question}\n\n${q.answer}`).join("\n\n---\n\n")}`;
-    navigator.clipboard.writeText(text);
+    try { await navigator.clipboard.writeText(text); } catch {}
+    if (grant?.url) window.open(grant.url, "_blank", "noopener,noreferrer");
     updateApp.mutate({ id: app.id, updates: { status: "submitted", submitted_at: new Date().toISOString() } });
-    updateGrant.mutate({ id: grant.id, updates: { status: "applied" } });
-    if (grant.url) window.open(grant.url, "_blank");
+    if (grant?.id) updateGrant.mutate({ id: grant.id, updates: { status: "applied" } });
     toast({ title: "Application copied", description: "Paste it into the grant portal that just opened." });
     setOpenDraft(null);
   };
@@ -188,23 +199,31 @@ export default function Funding() {
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {!g.enriched_at && (
-                        <Button size="sm" variant="outline" onClick={() => qualify.mutate(g.id)} disabled={qualify.isPending}>
-                          {qualify.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
-                          Analyze fit
-                        </Button>
-                      )}
-                      {!hasApp ? (
-                        <Button size="sm" onClick={() => generate.mutate(g.id)} disabled={generate.isPending}>
-                          {generate.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1.5 h-3.5 w-3.5" />}
-                          Generate application
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="secondary" onClick={() => {
-                          const a = applications.find(x => x.grant_id === g.id);
-                          if (a) setOpenDraft(a.id);
-                        }}><FileText className="mr-1.5 h-3.5 w-3.5" />Open draft</Button>
-                      )}
+                      {(() => {
+                        const isQualifying = busyGrantId?.id === g.id && busyGrantId.action === "qualify";
+                        const isGenerating = busyGrantId?.id === g.id && busyGrantId.action === "generate";
+                        return (
+                          <>
+                            {!g.enriched_at && (
+                              <Button size="sm" variant="outline" onClick={() => runQualify(g.id)} disabled={isQualifying}>
+                                {isQualifying ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
+                                Analyze fit
+                              </Button>
+                            )}
+                            {!hasApp ? (
+                              <Button size="sm" onClick={() => runGenerate(g.id)} disabled={isGenerating}>
+                                {isGenerating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1.5 h-3.5 w-3.5" />}
+                                Generate application
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="secondary" onClick={() => {
+                                const a = applications.find(x => x.grant_id === g.id);
+                                if (a) setOpenDraft(a.id);
+                              }}><FileText className="mr-1.5 h-3.5 w-3.5" />Open draft</Button>
+                            )}
+                          </>
+                        );
+                      })()}
                       <Button size="sm" variant="ghost" asChild>
                         <a href={g.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-1.5 h-3.5 w-3.5" />Source</a>
                       </Button>
@@ -268,13 +287,23 @@ export default function Funding() {
           <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
             <DialogHeader><DialogTitle>{openApp?.grants?.title}</DialogTitle></DialogHeader>
             {openApp && (
-              <div className="space-y-4">
+              <div key={openApp.id} className="space-y-4">
                 <div>
                   <Label className="mb-1 block">Pitch</Label>
                   <Textarea
-                    value={openApp.generated_pitch ?? ""}
-                    onChange={(e) => updateApp.mutate({ id: openApp.id, updates: { generated_pitch: e.target.value } })}
+                    defaultValue={openApp.generated_pitch ?? ""}
                     rows={6}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (pitchTimer.current) clearTimeout(pitchTimer.current);
+                      pitchTimer.current = setTimeout(() => {
+                        updateApp.mutate({ id: openApp.id, updates: { generated_pitch: value } });
+                      }, 600);
+                    }}
+                    onBlur={(e) => {
+                      if (pitchTimer.current) { clearTimeout(pitchTimer.current); pitchTimer.current = null; }
+                      updateApp.mutate({ id: openApp.id, updates: { generated_pitch: e.target.value } });
+                    }}
                   />
                 </div>
                 {getItems(openApp).map((q, i: number) => (
