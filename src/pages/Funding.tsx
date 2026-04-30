@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,6 +60,8 @@ export default function Funding() {
   const [openDraft, setOpenDraft] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newGrant, setNewGrant] = useState({ title: "", url: "", provider: "", deadline: "" });
+  const [busyGrantId, setBusyGrantId] = useState<{ id: string; action: "qualify" | "generate" } | null>(null);
+  const pitchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const opportunities = grants.filter(g => !["applied", "won", "lost", "dismissed"].includes(g.status));
   const drafts = applications.filter(a => a.status === "draft" || a.status === "approved");
@@ -73,14 +75,23 @@ export default function Funding() {
     return [];
   };
 
-  const handleApply = (app: any) => {
+  const runQualify = (id: string) => {
+    setBusyGrantId({ id, action: "qualify" });
+    qualify.mutate(id, { onSettled: () => setBusyGrantId(null) });
+  };
+  const runGenerate = (id: string) => {
+    setBusyGrantId({ id, action: "generate" });
+    generate.mutate(id, { onSettled: () => setBusyGrantId(null) });
+  };
+
+  const handleApply = async (app: any) => {
     const grant = app.grants;
     const items = getItems(app);
     const text = `${app.generated_pitch}\n\n---\n\n${items.map((q) => `Q: ${q.question}\n\n${q.answer}`).join("\n\n---\n\n")}`;
-    navigator.clipboard.writeText(text);
+    try { await navigator.clipboard.writeText(text); } catch {}
+    if (grant?.url) window.open(grant.url, "_blank", "noopener,noreferrer");
     updateApp.mutate({ id: app.id, updates: { status: "submitted", submitted_at: new Date().toISOString() } });
-    updateGrant.mutate({ id: grant.id, updates: { status: "applied" } });
-    if (grant.url) window.open(grant.url, "_blank");
+    if (grant?.id) updateGrant.mutate({ id: grant.id, updates: { status: "applied" } });
     toast({ title: "Application copied", description: "Paste it into the grant portal that just opened." });
     setOpenDraft(null);
   };
