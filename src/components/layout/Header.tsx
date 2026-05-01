@@ -1,4 +1,5 @@
-import { Bell, HelpCircle, Menu, User } from "lucide-react";
+import { HelpCircle, Menu, User } from "lucide-react";
+import { NotificationsBell } from "./NotificationsBell";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
