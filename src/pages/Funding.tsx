@@ -99,22 +99,33 @@ export default function Funding() {
   return (
     <DashboardLayout title="Funding">
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-4">
           <div>
             <h1 className="font-display text-2xl font-bold sm:text-3xl">Funding</h1>
-            <p className="text-sm text-muted-foreground">Grants and applications for the selected app.</p>
+            <p className="text-sm text-muted-foreground">Grants and applications are scoped per app. Switch apps to discover funding for each one.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={selectedAppId ?? ""} onValueChange={(v) => setSelectedAppId(v)}>
-              <SelectTrigger className="w-[200px]"><SelectValue placeholder="Choose an app" /></SelectTrigger>
-              <SelectContent>
-                {apps.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={!selectedAppId}><Plus className="mr-1.5 h-4 w-4" />Add manually</Button>
-              </DialogTrigger>
+
+          {apps.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Showing funding for</Label>
+                  <Select value={selectedAppId ?? ""} onValueChange={(v) => setSelectedAppId(v)}>
+                    <SelectTrigger className="w-full sm:w-[260px]"><SelectValue placeholder="Choose an app" /></SelectTrigger>
+                    <SelectContent>
+                      {apps.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => selectedAppId && discover.mutate(selectedAppId)} disabled={!selectedAppId || discover.isPending}>
+                    {discover.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
+                    Discover for this app
+                  </Button>
+                  <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={!selectedAppId}><Plus className="mr-1.5 h-4 w-4" />Add manually</Button>
+                    </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Add a grant</DialogTitle></DialogHeader>
                 <div className="space-y-3">
@@ -134,11 +145,10 @@ export default function Funding() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button size="sm" onClick={() => selectedAppId && discover.mutate(selectedAppId)} disabled={!selectedAppId || discover.isPending}>
-              {discover.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
-              Discover grants
-            </Button>
-          </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {apps.length === 0 && (
