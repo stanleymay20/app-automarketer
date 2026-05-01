@@ -1,4 +1,5 @@
-import { Bell, HelpCircle, Menu, User } from "lucide-react";
+import { HelpCircle, Menu, User } from "lucide-react";
+import { NotificationsBell } from "./NotificationsBell";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,11 +29,7 @@ export function Header({ title, onMenuToggle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="relative h-8 w-8">
-          <Bell className="h-4 w-4 text-muted-foreground" />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
-        </Button>
-
+        <NotificationsBell />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full bg-accent h-8 w-8">
