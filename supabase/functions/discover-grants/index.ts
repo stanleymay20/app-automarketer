@@ -68,16 +68,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const profile = body.profile?.trim() || `Early-stage founder building "${app.name}". ${app.description ?? ""} Target audience: ${app.target_audience ?? "n/a"}. Primary goal: ${app.primary_goal ?? "n/a"}. Website: ${app.website_url ?? "n/a"}. Based in Germany (Berlin).`;
-    const focus = body.focus?.trim() || `Germany and EU non-dilutive grants, accelerators, and innovation funding relevant specifically to "${app.name}" in 2026 (EXIST, Berlin Startup Scholarship, EIC Accelerator, Horizon Europe, Bundesregierung programs, sector-specific grants).`;
+    const profile = body.profile?.trim() || `Founder building "${app.name}". ${app.description ?? ""} Target audience: ${app.target_audience ?? "n/a"}. Primary goal: ${app.primary_goal ?? "n/a"}. Website: ${app.website_url ?? "n/a"}.`;
+    const focus = body.focus?.trim() || `GLOBAL non-dilutive funding for "${app.name}" in 2026 — include opportunities from anywhere in the world the team could realistically apply to: government grants, public innovation programs, foundation grants, accelerators with cash awards, fellowships, university/research programs, regional and supranational programs (EU, Africa, LATAM, MENA, APAC, North America), sector-specific funds, open-source/AI/climate/health funds, and remote-friendly programs that accept international applicants. Do NOT restrict to a single country.`;
 
     // Perplexity structured search
-    const prompt = `Find 8-12 currently open or upcoming funding opportunities matching this founder profile:
+    const prompt = `Find 10-15 currently open or upcoming funding opportunities from ANYWHERE IN THE WORLD that match this founder profile.
+
 PROFILE: ${profile}
+
 FOCUS: ${focus}
 
-For each opportunity return title, provider, country, application URL, funding amount (text), deadline (YYYY-MM-DD if known else null), one-paragraph eligibility summary, and 3-5 tags.
-Only include opportunities that are real and currently accepting (or will accept) applications.`;
+Rules:
+- Cover diverse geographies (do not return only one country/region). Include both location-bound and globally-open programs.
+- Prefer programs with clear eligibility for international/remote founders when possible, but also include strong country-specific programs that match the profile.
+- Only real, currently active or upcoming programs. Never invent URLs.
+- For each: title, provider, country (or "Global"), application URL, funding amount (text), deadline (YYYY-MM-DD or null), one-paragraph eligibility summary, short description, and 3-5 tags.`;
 
     const perplexityRes = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
