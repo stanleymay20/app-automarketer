@@ -145,11 +145,10 @@ export default function Funding() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button size="sm" onClick={() => selectedAppId && discover.mutate(selectedAppId)} disabled={!selectedAppId || discover.isPending}>
-              {discover.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
-              Discover grants
-            </Button>
-          </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {apps.length === 0 && (
