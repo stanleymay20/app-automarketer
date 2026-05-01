@@ -169,7 +169,7 @@ export default function Funding() {
                 <CardContent className="py-12 text-center">
                   <Sparkles className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                   <p className="font-medium">No grants yet</p>
-                  <p className="mb-4 text-sm text-muted-foreground">Run discovery to pull in matching German & EU grants.</p>
+                  <p className="mb-4 text-sm text-muted-foreground">Run discovery to find matching grants from around the world.</p>
                   <Button onClick={() => selectedAppId && discover.mutate(selectedAppId)} disabled={!selectedAppId || discover.isPending}>
                     {discover.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
                     Discover grants
