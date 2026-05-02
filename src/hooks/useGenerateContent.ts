@@ -121,13 +121,15 @@ export function useGenerateContent() {
           },
         }).catch((err) => console.error("Quality gate error:", err));
 
-        // Generate post image
+        // Generate post image (pass appId so the visual planner can use real
+        // brand tone, target audience, and app name — without it images go generic)
         supabase.functions.invoke("generate-post-image", {
           body: {
             contentId: item.id,
             contentText: item.content_text,
             appName: app.name,
             platform: item.platform,
+            appId: app.id,
           },
         }).catch((err) => console.error("Image generation error:", err));
       }
