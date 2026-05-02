@@ -379,7 +379,7 @@ serve(async (req) => {
 
     // 1. Plan the visual (mode + audience + headline + core message)
     const plan = await planVisual({
-      contentText,
+      contentText: planContext,
       appName: resolvedAppName,
       targetAudience,
       brandTone,
