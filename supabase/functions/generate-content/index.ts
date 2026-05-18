@@ -129,16 +129,73 @@ serve(async (req) => {
   }
 
   try {
-    const { app, postsPerPlatform = 2, topic } = await req.json() as {
+    const {
+      app,
+      postsPerPlatform = 2,
+      topic,
+      persona_id,
+      journey_stage,
+      messaging_angle,
+    } = await req.json() as {
       app: AppDetails;
       postsPerPlatform?: number;
       topic?: string;
+      persona_id?: string;
+      journey_stage?: string;
+      messaging_angle?: string;
     };
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // Load persona + journey stage from DB if provided
+    let persona: any = null;
+    let stage: any = null;
+    if (persona_id || (journey_stage && app.id)) {
+      try {
+        const sb = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        if (persona_id) {
+          const { data } = await sb.from("personas").select("*").eq("id", persona_id).maybeSingle();
+          persona = data;
+        }
+        if (journey_stage && app.id) {
+          const { data } = await sb.from("journey_stages").select("*")
+            .eq("app_id", app.id).eq("stage", journey_stage).maybeSingle();
+          stage = data;
+        }
+      } catch (e) {
+        console.error("[generate-content] strategy fetch failed:", e);
+      }
+    }
+
+    const strategyBlock = (() => {
+      const parts: string[] = [];
+      if (persona) {
+        parts.push(`## TARGET PERSONA (write FOR this person specifically)
+- Title: ${persona.title}${persona.company_size ? ` at ${persona.company_size}` : ""}
+- Their pains: ${(persona.pains || []).join("; ") || "(none specified)"}
+- Their goals: ${(persona.goals || []).join("; ") || "(none specified)"}
+- Their buying triggers: ${(persona.triggers || []).join("; ") || "(none)"}
+- Their objections: ${(persona.objections || []).join("; ") || "(none)"}
+- Content style they prefer: ${persona.content_style || "professional, insight-driven"}`);
+      }
+      if (stage) {
+        parts.push(`## JOURNEY STAGE: ${String(stage.stage).toUpperCase()}
+- What they're thinking: "${stage.customer_thinking || ""}"
+- Best content format: ${stage.best_content || ""}
+- Recommended CTA direction: ${stage.best_cta || ""}`);
+      }
+      if (messaging_angle) {
+        parts.push(`## MESSAGING ANGLE TO USE
+${messaging_angle}`);
+      }
+      return parts.length ? `\n${parts.join("\n\n")}\n` : "";
+    })();
 
     // Generate content for each platform separately for true platform-native output
     const allPosts: { platform: string; content: string }[] = [];
