@@ -12,6 +12,7 @@ import { usePlatformConnections, useConnectPlatform, Platform } from "@/hooks/us
 import { Sparkles, Loader2, Send, ArrowLeft, CheckCircle2, Linkedin, Twitter, RefreshCw, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useContentScores } from "@/hooks/useContentScores";
+import { usePersonas, useJourneyStages, useMessagingAngles } from "@/hooks/useAudience";
 import {
   Dialog,
   DialogContent,
