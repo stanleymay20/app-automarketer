@@ -20,9 +20,12 @@ export function useGenerateContent() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: async (input: App | { app: App; topic?: string }) => {
+    mutationFn: async (input: App | { app: App; topic?: string; persona_id?: string; journey_stage?: string; messaging_angle?: string }) => {
       const app: App = "app" in input ? input.app : input;
       const topic: string | undefined = "app" in input ? input.topic : undefined;
+      const persona_id = "app" in input ? input.persona_id : undefined;
+      const journey_stage = "app" in input ? input.journey_stage : undefined;
+      const messaging_angle = "app" in input ? input.messaging_angle : undefined;
 
       if (!app.platforms || app.platforms.length === 0) {
         throw new Error("Please select at least one platform for this app");
@@ -52,6 +55,9 @@ export function useGenerateContent() {
           },
           topic: topic?.trim() || undefined,
           postsPerPlatform: 2,
+          persona_id,
+          journey_stage,
+          messaging_angle,
         },
       });
 
