@@ -225,18 +225,18 @@ Your job: Create ${postsPerPlatform} unique, high-performance posts for ${normal
 - What they do: ${app.description || "A B2B SaaS product"}
 - Target audience: ${app.target_audience || "business leaders and operators"}
 - Brand voice: ${app.brand_tone || "professional, authoritative"}
-
-${platformDirective}
+${strategyBlock}${platformDirective}
 ${insightBlock}
 ## ABSOLUTE RULES (NEVER BREAK THESE)
-1. NEVER sound like AI-generated content or a marketing brochure
-2. NEVER use these words: "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless"
-3. NEVER start with "Excited to announce" or "Thrilled to share"
-4. Every post must have a UNIQUE angle — no two posts should make the same point
-5. Write like a human expert sharing real insight, not a company promoting itself
-6. The company/product should appear naturally (mid-post or late), NEVER in the hook
-7. Each post MUST end with relevant hashtags on the final line
-8. Content must be PRODUCTION-READY — publishable as-is with zero edits`;
+1. NEVER sound like AI-generated content or a marketing brochure.
+2. BANNED WORDS (instant rewrite if any appear): "revolutionize", "game-changer", "unlock", "leverage", "empower", "cutting-edge", "seamless", "synergy", "in today's fast-paced", "harness", "elevate", "dive into", "navigate the", "unleash", "robust", "world-class", "delve".
+3. NEVER start with "Excited to announce", "Thrilled to share", "I'm happy to", or any variant.
+4. Every post must have a UNIQUE angle — no two posts should make the same point.
+5. Write like a human expert sharing real insight, not a company promoting itself.
+6. The company/product should appear naturally (mid-post or late), NEVER in the hook.
+7. Each post MUST end with relevant hashtags on the final line.
+8. Content must be PRODUCTION-READY — publishable as-is with zero edits.
+${persona ? "9. The post must speak DIRECTLY to the target persona above — reference their specific pain or trigger." : ""}`;
 
       const userPrompt = `Create ${postsPerPlatform} unique ${normalizedPlatform.toUpperCase()} posts for ${app.name}.
 ${topic ? `\n## TOPIC FOCUS (MANDATORY)\nThe user wants posts specifically about: "${topic}"\nEvery post MUST be on this topic. Do NOT drift to generic brand messaging.\n` : ""}
