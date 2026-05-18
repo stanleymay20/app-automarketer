@@ -133,6 +133,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audience_profiles: {
+        Row: {
+          app_id: string
+          created_at: string
+          id: string
+          last_generated_at: string | null
+          raw_research: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          created_at?: string
+          id?: string
+          last_generated_at?: string | null
+          raw_research?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          created_at?: string
+          id?: string
+          last_generated_at?: string | null
+          raw_research?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       automation_audit_log: {
         Row: {
           action_type: string
@@ -329,6 +362,9 @@ export type Database = {
           id: string
           image_url: string | null
           impressions: number | null
+          journey_stage: string | null
+          messaging_angle: string | null
+          persona_id: string | null
           platform: string
           published_at: string | null
           scheduled_for: string | null
@@ -348,6 +384,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           impressions?: number | null
+          journey_stage?: string | null
+          messaging_angle?: string | null
+          persona_id?: string | null
           platform: string
           published_at?: string | null
           scheduled_for?: string | null
@@ -367,6 +406,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           impressions?: number | null
+          journey_stage?: string | null
+          messaging_angle?: string | null
+          persona_id?: string | null
           platform?: string
           published_at?: string | null
           scheduled_for?: string | null
@@ -658,6 +700,93 @@ export type Database = {
           },
         ]
       }
+      icps: {
+        Row: {
+          app_id: string
+          company_size: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          notes: string | null
+          segment: string
+          signals: string[] | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          company_size?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          notes?: string | null
+          segment: string
+          signals?: string[] | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          company_size?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          notes?: string | null
+          segment?: string
+          signals?: string[] | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      journey_stages: {
+        Row: {
+          app_id: string
+          best_content: string | null
+          best_cta: string | null
+          channels: string[] | null
+          created_at: string
+          customer_thinking: string | null
+          id: string
+          pains: string[] | null
+          stage: string
+          stage_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          best_content?: string | null
+          best_cta?: string | null
+          channels?: string[] | null
+          created_at?: string
+          customer_thinking?: string | null
+          id?: string
+          pains?: string[] | null
+          stage: string
+          stage_order: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          best_content?: string | null
+          best_cta?: string | null
+          channels?: string[] | null
+          created_at?: string
+          customer_thinking?: string | null
+          id?: string
+          pains?: string[] | null
+          stage?: string
+          stage_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           app_id: string
@@ -759,6 +888,45 @@ export type Database = {
           },
         ]
       }
+      messaging_angles: {
+        Row: {
+          angle_name: string
+          app_id: string
+          created_at: string
+          example: string | null
+          hook_template: string | null
+          id: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+          when_to_use: string | null
+        }
+        Insert: {
+          angle_name: string
+          app_id: string
+          created_at?: string
+          example?: string | null
+          hook_template?: string | null
+          id?: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+          when_to_use?: string | null
+        }
+        Update: {
+          angle_name?: string
+          app_id?: string
+          created_at?: string
+          example?: string | null
+          hook_template?: string | null
+          id?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          when_to_use?: string | null
+        }
+        Relationships: []
+      }
       performance_signals: {
         Row: {
           captured_at: string
@@ -805,6 +973,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      personas: {
+        Row: {
+          app_id: string
+          channels: string[] | null
+          company_size: string | null
+          content_style: string | null
+          created_at: string
+          goals: string[] | null
+          icp_id: string | null
+          id: string
+          objections: string[] | null
+          pains: string[] | null
+          responsibilities: string[] | null
+          sort_order: number
+          title: string
+          triggers: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          channels?: string[] | null
+          company_size?: string | null
+          content_style?: string | null
+          created_at?: string
+          goals?: string[] | null
+          icp_id?: string | null
+          id?: string
+          objections?: string[] | null
+          pains?: string[] | null
+          responsibilities?: string[] | null
+          sort_order?: number
+          title: string
+          triggers?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          channels?: string[] | null
+          company_size?: string | null
+          content_style?: string | null
+          created_at?: string
+          goals?: string[] | null
+          icp_id?: string | null
+          id?: string
+          objections?: string[] | null
+          pains?: string[] | null
+          responsibilities?: string[] | null
+          sort_order?: number
+          title?: string
+          triggers?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       platform_connections: {
         Row: {
