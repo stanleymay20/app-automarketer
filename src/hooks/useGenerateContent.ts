@@ -103,6 +103,9 @@ export function useGenerateContent() {
           content_text: post.content,
           status,
           scheduled_for: scheduledTime.toISOString(),
+          persona_id: persona_id || null,
+          journey_stage: journey_stage || null,
+          messaging_angle: messaging_angle || null,
         };
       });
 
