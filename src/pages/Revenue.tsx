@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DollarSign, Users, MousePointerClick, TrendingUp, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -99,9 +100,9 @@ export default function Revenue() {
           </Card>
         </div>
 
-        {/* Leads */}
+        {/* Leads — List + Pipeline tabs */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-base">Leads</CardTitle>
           </CardHeader>
           <CardContent>
@@ -110,60 +111,99 @@ export default function Revenue() {
                 No leads yet. Share tracked links from your posts to capture leads on your landing pages.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>App</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Captured</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leads.map((lead) => (
-                      <TableRow key={lead.id}>
-                        <TableCell className="font-medium">{lead.email}{lead.name ? <div className="text-xs text-muted-foreground">{lead.name}</div> : null}</TableCell>
-                        <TableCell>{appName(lead.app_id)}</TableCell>
-                        <TableCell>
-                          <Badge variant={lead.status === "converted" ? "default" : "secondary"}>{lead.status}</Badge>
-                        </TableCell>
-                        <TableCell>{lead.lead_score}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{new Date(lead.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          {lead.status !== "converted" && (
-                            <Dialog open={convDialogLead === lead.id} onOpenChange={(o) => setConvDialogLead(o ? lead.id : null)}>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">Mark converted</Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader><DialogTitle>Record conversion</DialogTitle></DialogHeader>
-                                <div className="space-y-3">
-                                  <div className="space-y-1">
-                                    <Label>Amount (USD)</Label>
-                                    <Input type="number" min="0" step="0.01" value={convAmount} onChange={(e) => setConvAmount(e.target.value)} placeholder="49.00" />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label>Notes (optional)</Label>
-                                    <Input value={convNotes} onChange={(e) => setConvNotes(e.target.value)} placeholder="Plan, deal name…" />
-                                  </div>
+              <Tabs defaultValue="pipeline">
+                <TabsList>
+                  <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+                  <TabsTrigger value="list">List</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="pipeline" className="mt-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {(["new", "contacted", "qualified", "converted"] as const).map((stage) => {
+                      const stageLeads = leads.filter((l) => l.status === stage);
+                      const nextStage: Record<string, string | null> = {
+                        new: "contacted", contacted: "qualified", qualified: "converted", converted: null,
+                      };
+                      return (
+                        <div key={stage} className="rounded-lg border bg-muted/30 p-2">
+                          <div className="flex items-center justify-between px-1 pb-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{stage}</span>
+                            <Badge variant="secondary" className="text-[10px]">{stageLeads.length}</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {stageLeads.length === 0 ? (
+                              <div className="rounded-md border border-dashed bg-background/50 p-3 text-center text-[11px] text-muted-foreground">Empty</div>
+                            ) : stageLeads.map((lead) => (
+                              <div key={lead.id} className="rounded-md border bg-background p-2.5 shadow-sm">
+                                <div className="text-sm font-medium truncate">{lead.email}</div>
+                                {lead.name && <div className="text-[11px] text-muted-foreground truncate">{lead.name}</div>}
+                                <div className="mt-1 flex items-center justify-between">
+                                  <span className="text-[10px] text-muted-foreground">{appName(lead.app_id)}</span>
+                                  <span className="text-[10px] text-muted-foreground">{lead.lead_score}</span>
                                 </div>
-                                <DialogFooter>
-                                  <Button onClick={() => handleRecordConversion(lead.id, lead.app_id, lead.source_content_id)} disabled={addConversion.isPending}>
-                                    Save
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                                <div className="mt-2 flex gap-1">
+                                  {stage !== "converted" && nextStage[stage] && nextStage[stage] !== "converted" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-6 px-2 text-[11px] flex-1"
+                                      onClick={() => updateLead.mutate({ id: lead.id, status: nextStage[stage]! })}
+                                    >
+                                      → {nextStage[stage]}
+                                    </Button>
+                                  )}
+                                  {stage !== "converted" && (
+                                    <Button
+                                      size="sm"
+                                      className="h-6 px-2 text-[11px] flex-1"
+                                      onClick={() => setConvDialogLead(lead.id)}
+                                    >
+                                      Convert
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="list" className="mt-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>App</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Captured</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {leads.map((lead) => (
+                          <TableRow key={lead.id}>
+                            <TableCell className="font-medium">{lead.email}{lead.name ? <div className="text-xs text-muted-foreground">{lead.name}</div> : null}</TableCell>
+                            <TableCell>{appName(lead.app_id)}</TableCell>
+                            <TableCell><Badge variant={lead.status === "converted" ? "default" : "secondary"}>{lead.status}</Badge></TableCell>
+                            <TableCell>{lead.lead_score}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{new Date(lead.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              {lead.status !== "converted" && (
+                                <Button size="sm" variant="outline" onClick={() => setConvDialogLead(lead.id)}>Mark converted</Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>
@@ -204,6 +244,32 @@ export default function Revenue() {
             <Button asChild variant="outline" size="sm"><Link to="/apps">Manage apps <ExternalLink className="ml-1 h-3 w-3" /></Link></Button>
           </CardContent>
         </Card>
+
+        {/* Global conversion dialog */}
+        <Dialog open={!!convDialogLead} onOpenChange={(o) => !o && setConvDialogLead(null)}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Record conversion</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Amount (USD)</Label>
+                <Input type="number" min="0" step="0.01" value={convAmount} onChange={(e) => setConvAmount(e.target.value)} placeholder="49.00" />
+              </div>
+              <div className="space-y-1">
+                <Label>Notes (optional)</Label>
+                <Input value={convNotes} onChange={(e) => setConvNotes(e.target.value)} placeholder="Plan, deal name…" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  const lead = leads.find((l) => l.id === convDialogLead);
+                  if (lead) handleRecordConversion(lead.id, lead.app_id, lead.source_content_id);
+                }}
+                disabled={addConversion.isPending}
+              >Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

@@ -14,7 +14,7 @@ import { useGenerateContent } from "@/hooks/useGenerateContent";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { usePublishNow } from "@/hooks/usePublishNow";
 import { useContentScores } from "@/hooks/useContentScores";
-import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, RotateCcw, Save, X } from "lucide-react";
+import { Plus, Check, Clock, Edit2, Trash2, FileText, Loader2, Sparkles, AlertTriangle, Unlink, ExternalLink, XCircle, Send, Shield, Brain, RotateCcw, Save, X, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -236,6 +236,21 @@ export default function Content() {
                           <ExternalLink className="h-3 w-3" />
                           View on {platformLabels[item.platform] || item.platform}
                         </a>
+                      )}
+                      {item.status === "published" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/track-click/${item.id}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success("Tracked link copied");
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          title="Copy tracked link for attribution"
+                        >
+                          <Link2 className="h-3 w-3" />
+                          Tracked link
+                        </button>
                       )}
                     </div>
 

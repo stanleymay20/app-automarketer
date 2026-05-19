@@ -20,6 +20,7 @@ import Revenue from "./pages/Revenue";
 import Funding from "./pages/Funding";
 import Audience from "./pages/Audience";
 import LandingPage from "./pages/LandingPage";
+import AppLanding from "./pages/AppLanding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ function AppRoutes() {
        <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
        <Route path="/apps" element={<ProtectedRoute><Apps /></ProtectedRoute>} />
+       <Route path="/apps/:id/landing" element={<ProtectedRoute><AppLanding /></ProtectedRoute>} />
        <Route path="/content" element={<ProtectedRoute><Content /></ProtectedRoute>} />
        <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
        <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />

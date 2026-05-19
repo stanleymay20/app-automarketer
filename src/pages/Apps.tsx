@@ -71,6 +71,9 @@ export default function Apps() {
                       <DropdownMenuItem asChild>
                         <Link to={`/analytics?app=${app.id}`}>View Analytics</Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={`/apps/${app.id}/landing`}>Landing Page</Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={() => deleteApp.mutate(app.id)}
