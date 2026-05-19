@@ -237,6 +237,21 @@ export default function Content() {
                           View on {platformLabels[item.platform] || item.platform}
                         </a>
                       )}
+                      {item.status === "published" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/track-click/${item.id}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success("Tracked link copied");
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          title="Copy tracked link for attribution"
+                        >
+                          <Link2 className="h-3 w-3" />
+                          Tracked link
+                        </button>
+                      )}
                     </div>
 
                     {/* Content text or edit mode */}
