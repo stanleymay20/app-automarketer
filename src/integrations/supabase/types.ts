@@ -74,11 +74,17 @@ export type Database = {
           description: string | null
           engagements_count: number | null
           id: string
+          landing_brand_color: string | null
           landing_cta_label: string | null
           landing_enabled: boolean
+          landing_features: Json
           landing_headline: string | null
+          landing_objections: Json
+          landing_persona_id: string | null
+          landing_proof: Json
           landing_slug: string | null
           landing_subheadline: string | null
+          landing_template: string
           name: string
           platforms: string[] | null
           posts_count: number | null
@@ -95,11 +101,17 @@ export type Database = {
           description?: string | null
           engagements_count?: number | null
           id?: string
+          landing_brand_color?: string | null
           landing_cta_label?: string | null
           landing_enabled?: boolean
+          landing_features?: Json
           landing_headline?: string | null
+          landing_objections?: Json
+          landing_persona_id?: string | null
+          landing_proof?: Json
           landing_slug?: string | null
           landing_subheadline?: string | null
+          landing_template?: string
           name: string
           platforms?: string[] | null
           posts_count?: number | null
@@ -116,11 +128,17 @@ export type Database = {
           description?: string | null
           engagements_count?: number | null
           id?: string
+          landing_brand_color?: string | null
           landing_cta_label?: string | null
           landing_enabled?: boolean
+          landing_features?: Json
           landing_headline?: string | null
+          landing_objections?: Json
+          landing_persona_id?: string | null
+          landing_proof?: Json
           landing_slug?: string | null
           landing_subheadline?: string | null
+          landing_template?: string
           name?: string
           platforms?: string[] | null
           posts_count?: number | null
