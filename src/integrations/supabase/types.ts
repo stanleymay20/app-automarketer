@@ -1945,6 +1945,22 @@ export type Database = {
     }
     Functions: {
       decay_distribution_recommendations: { Args: never; Returns: undefined }
+      get_public_landing: {
+        Args: { _slug: string }
+        Returns: {
+          id: string
+          landing_brand_color: string
+          landing_cta_label: string
+          landing_features: Json
+          landing_headline: string
+          landing_objections: Json
+          landing_proof: Json
+          landing_slug: string
+          landing_subheadline: string
+          landing_template: string
+          name: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
