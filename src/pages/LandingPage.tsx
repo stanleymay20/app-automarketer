@@ -32,10 +32,7 @@ export default function LandingPage() {
     enabled: !!slug,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("apps")
-        .select("id, name, description, landing_headline, landing_subheadline, landing_cta_label, landing_enabled, landing_features, landing_proof, landing_objections, landing_brand_color, target_audience")
-        .eq("landing_slug", slug!)
-        .eq("landing_enabled", true)
+        .rpc("get_public_landing", { _slug: slug! })
         .maybeSingle();
       if (error) throw error;
       return data;
