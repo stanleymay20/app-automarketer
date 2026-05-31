@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.generate-growth-intelligence]
 verify_jwt = false
+
+[functions.execute-recommendation]
+verify_jwt = false

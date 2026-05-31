@@ -10,6 +10,8 @@ const tables = [
   "growth_recommendations",
 ] as const;
 
+export type RecAction = "campaign" | "landing" | "creative_set" | "save" | "dismiss";
+
 export function useMarketIntelligence(appId?: string) {
   return useQuery({
     queryKey: ["market-intelligence", appId ?? "all"],
@@ -25,7 +27,6 @@ export function useMarketIntelligence(appId?: string) {
         tables.map(fetchTable)
       );
 
-      // Real attribution evidence for display
       const baseFilter = (q: any) => (appId ? q.eq("app_id", appId) : q);
       const [postsRes, clicksRes, leadsRes, convsRes] = await Promise.all([
         baseFilter(supabase.from("content").select("id", { count: "exact", head: true }).eq("status", "published")),
@@ -41,7 +42,18 @@ export function useMarketIntelligence(appId?: string) {
         revenue: (convsRes.data ?? []).reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0),
       };
 
-      return { market, competitors, opportunities, customers, recommendations, evidence };
+      // Recommendation memory
+      const recs = recommendations as any[];
+      const memory = {
+        total: recs.length,
+        accepted: recs.filter((r) => r.accepted_at).length,
+        generated: recs.filter((r) => r.creative_count > 0).length,
+        published: recs.filter((r) => r.published_count > 0).length,
+        converted: recs.filter((r) => r.conversions_count > 0).length,
+        revenue: recs.reduce((s, r) => s + Number(r.revenue_attributed ?? 0), 0),
+      };
+
+      return { market, competitors, opportunities, customers, recommendations, evidence, memory };
     },
   });
 }
@@ -64,5 +76,36 @@ export function useGenerateGrowthIntelligence() {
     },
     onError: (e: any) =>
       toast({ title: "Refresh failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useExecuteRecommendation() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, action }: { id: string; action: RecAction }) => {
+      const { data, error } = await supabase.functions.invoke("execute-recommendation", {
+        body: { recommendation_id: id, action },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { data, action };
+    },
+    onSuccess: ({ action }) => {
+      qc.invalidateQueries({ queryKey: ["market-intelligence"] });
+      qc.invalidateQueries({ queryKey: ["campaigns"] });
+      qc.invalidateQueries({ queryKey: ["content"] });
+      qc.invalidateQueries({ queryKey: ["apps"] });
+      const labels: Record<RecAction, string> = {
+        campaign: "Campaign created",
+        landing: "Landing page generated",
+        creative_set: "4 creative variants ready",
+        save: "Saved for later",
+        dismiss: "Recommendation dismissed",
+      };
+      toast({ title: labels[action] });
+    },
+    onError: (e: any) =>
+      toast({ title: "Action failed", description: e.message, variant: "destructive" }),
   });
 }
