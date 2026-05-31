@@ -1594,6 +1594,60 @@ export type Database = {
           },
         ]
       }
+      portfolio_snapshots: {
+        Row: {
+          angle_coverage: Json
+          app_id: string | null
+          coach_action: string | null
+          coach_headline: string | null
+          coach_impact: string | null
+          computed_at: string
+          coverage_score: number
+          created_at: string
+          format_coverage: Json
+          id: string
+          opportunities: Json
+          revenue_coverage: Json
+          stage_coverage: Json
+          totals: Json
+          user_id: string
+        }
+        Insert: {
+          angle_coverage?: Json
+          app_id?: string | null
+          coach_action?: string | null
+          coach_headline?: string | null
+          coach_impact?: string | null
+          computed_at?: string
+          coverage_score?: number
+          created_at?: string
+          format_coverage?: Json
+          id?: string
+          opportunities?: Json
+          revenue_coverage?: Json
+          stage_coverage?: Json
+          totals?: Json
+          user_id: string
+        }
+        Update: {
+          angle_coverage?: Json
+          app_id?: string | null
+          coach_action?: string | null
+          coach_headline?: string | null
+          coach_impact?: string | null
+          computed_at?: string
+          coverage_score?: number
+          created_at?: string
+          format_coverage?: Json
+          id?: string
+          opportunities?: Json
+          revenue_coverage?: Json
+          stage_coverage?: Json
+          totals?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       prospect_actions: {
         Row: {
           action_type: string
