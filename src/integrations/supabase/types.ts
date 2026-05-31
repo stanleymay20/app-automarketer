@@ -314,6 +314,9 @@ export type Database = {
           id: string
           platform_mix: string[] | null
           posting_frequency: number
+          seed_distribution_action_id: string | null
+          seed_distribution_source_type: string | null
+          seed_distribution_target_id: string | null
           seed_recommendation_id: string | null
           strategy_summary: string | null
           themes: string[] | null
@@ -329,6 +332,9 @@ export type Database = {
           id?: string
           platform_mix?: string[] | null
           posting_frequency?: number
+          seed_distribution_action_id?: string | null
+          seed_distribution_source_type?: string | null
+          seed_distribution_target_id?: string | null
           seed_recommendation_id?: string | null
           strategy_summary?: string | null
           themes?: string[] | null
@@ -344,6 +350,9 @@ export type Database = {
           id?: string
           platform_mix?: string[] | null
           posting_frequency?: number
+          seed_distribution_action_id?: string | null
+          seed_distribution_source_type?: string | null
+          seed_distribution_target_id?: string | null
           seed_recommendation_id?: string | null
           strategy_summary?: string | null
           themes?: string[] | null
@@ -466,9 +475,12 @@ export type Database = {
       content: {
         Row: {
           app_id: string
+          campaign_id: string | null
           clicks: number | null
           content_text: string
           created_at: string
+          distribution_action_id: string | null
+          distribution_source_type: string | null
           distribution_target_id: string | null
           engagements: number | null
           external_post_id: string | null
@@ -490,9 +502,12 @@ export type Database = {
         }
         Insert: {
           app_id: string
+          campaign_id?: string | null
           clicks?: number | null
           content_text: string
           created_at?: string
+          distribution_action_id?: string | null
+          distribution_source_type?: string | null
           distribution_target_id?: string | null
           engagements?: number | null
           external_post_id?: string | null
@@ -514,9 +529,12 @@ export type Database = {
         }
         Update: {
           app_id?: string
+          campaign_id?: string | null
           clicks?: number | null
           content_text?: string
           created_at?: string
+          distribution_action_id?: string | null
+          distribution_source_type?: string | null
           distribution_target_id?: string | null
           engagements?: number | null
           external_post_id?: string | null
