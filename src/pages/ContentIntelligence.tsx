@@ -33,7 +33,7 @@ export default function ContentIntelligence() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Portfolio Intelligence">
       <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
