@@ -58,7 +58,7 @@ export default function MarketIntelligence() {
     (data?.recommendations.length ?? 0);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Market Intelligence">
       <div className="space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
