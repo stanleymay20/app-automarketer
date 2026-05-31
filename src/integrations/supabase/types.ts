@@ -269,6 +269,7 @@ export type Database = {
           id: string
           platform_mix: string[] | null
           posting_frequency: number
+          seed_recommendation_id: string | null
           strategy_summary: string | null
           themes: string[] | null
           updated_at: string
@@ -283,6 +284,7 @@ export type Database = {
           id?: string
           platform_mix?: string[] | null
           posting_frequency?: number
+          seed_recommendation_id?: string | null
           strategy_summary?: string | null
           themes?: string[] | null
           updated_at?: string
@@ -297,6 +299,7 @@ export type Database = {
           id?: string
           platform_mix?: string[] | null
           posting_frequency?: number
+          seed_recommendation_id?: string | null
           strategy_summary?: string | null
           themes?: string[] | null
           updated_at?: string
@@ -431,6 +434,7 @@ export type Database = {
           platform: string
           published_at: string | null
           scheduled_for: string | null
+          seed_recommendation_id: string | null
           status: string
           updated_at: string
           user_id: string
@@ -453,6 +457,7 @@ export type Database = {
           platform: string
           published_at?: string | null
           scheduled_for?: string | null
+          seed_recommendation_id?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -475,6 +480,7 @@ export type Database = {
           platform?: string
           published_at?: string | null
           scheduled_for?: string | null
+          seed_recommendation_id?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -804,40 +810,79 @@ export type Database = {
       }
       growth_recommendations: {
         Row: {
+          accepted_at: string | null
+          angle: string | null
           app_id: string | null
+          campaign_id: string | null
           confidence_score: number
+          conversions_count: number
           created_at: string
+          creative_count: number
+          dismissed_at: string | null
+          evidence_summary: string | null
           expected_impact: string | null
           explanation: string | null
           id: string
+          journey_stage: string | null
+          landing_app_id: string | null
+          persona_id: string | null
+          published_count: number
           recommendation_type: string
+          revenue_attributed: number
           status: string
+          suggested_platform: string | null
           supporting_signal_ids: Json
           title: string
           user_id: string
         }
         Insert: {
+          accepted_at?: string | null
+          angle?: string | null
           app_id?: string | null
+          campaign_id?: string | null
           confidence_score?: number
+          conversions_count?: number
           created_at?: string
+          creative_count?: number
+          dismissed_at?: string | null
+          evidence_summary?: string | null
           expected_impact?: string | null
           explanation?: string | null
           id?: string
+          journey_stage?: string | null
+          landing_app_id?: string | null
+          persona_id?: string | null
+          published_count?: number
           recommendation_type: string
+          revenue_attributed?: number
           status?: string
+          suggested_platform?: string | null
           supporting_signal_ids?: Json
           title: string
           user_id: string
         }
         Update: {
+          accepted_at?: string | null
+          angle?: string | null
           app_id?: string | null
+          campaign_id?: string | null
           confidence_score?: number
+          conversions_count?: number
           created_at?: string
+          creative_count?: number
+          dismissed_at?: string | null
+          evidence_summary?: string | null
           expected_impact?: string | null
           explanation?: string | null
           id?: string
+          journey_stage?: string | null
+          landing_app_id?: string | null
+          persona_id?: string | null
+          published_count?: number
           recommendation_type?: string
+          revenue_attributed?: number
           status?: string
+          suggested_platform?: string | null
           supporting_signal_ids?: Json
           title?: string
           user_id?: string
