@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.prospect-action]
 verify_jwt = false
+
+[functions.discover-distribution]
+verify_jwt = false
+
+[functions.distribution-action]
+verify_jwt = false
