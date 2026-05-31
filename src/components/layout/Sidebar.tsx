@@ -17,6 +17,7 @@ import {
   Lightbulb,
   Radar,
   Target,
+  Megaphone,
   X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -31,6 +32,7 @@ const navItems = [
   { icon: AppWindow, label: "Campaigns", path: "/content" },
   { icon: Radar, label: "Market Intel", path: "/market-intelligence" },
   { icon: Target, label: "Prospects", path: "/prospects" },
+  { icon: Megaphone, label: "Distribution", path: "/distribution" },
   { icon: BarChart3, label: "Performance", path: "/analytics" },
   { icon: Lightbulb, label: "Intelligence", path: "/intelligence" },
   { icon: DollarSign, label: "Revenue", path: "/revenue" },
