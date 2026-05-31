@@ -642,6 +642,183 @@ export type Database = {
         }
         Relationships: []
       }
+      distribution_actions: {
+        Row: {
+          action_type: string
+          body: string | null
+          campaign_id: string | null
+          channel: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          subject: string | null
+          target_id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          body?: string | null
+          campaign_id?: string | null
+          channel?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          subject?: string | null
+          target_id: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          body?: string | null
+          campaign_id?: string | null
+          channel?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          subject?: string | null
+          target_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      distribution_recommendations: {
+        Row: {
+          app_id: string | null
+          basis: string
+          confidence: number
+          created_at: string
+          id: string
+          insight: string
+          recommendation: string | null
+          related_platform: string | null
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          basis?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          insight: string
+          recommendation?: string | null
+          related_platform?: string | null
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          basis?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          insight?: string
+          recommendation?: string | null
+          related_platform?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      distribution_targets: {
+        Row: {
+          activated_at: string | null
+          app_id: string | null
+          audience: string | null
+          audience_fit: number
+          clicks_count: number
+          competition_level: number
+          contacted_at: string | null
+          conversion_potential: number
+          conversions_count: number
+          cost_score: number
+          created_at: string
+          description: string | null
+          distribution_score: number
+          event_date: string | null
+          id: string
+          leads_count: number
+          metadata: Json
+          name: string
+          platform: string | null
+          posts_count: number
+          rationale: string | null
+          reach_potential: number
+          revenue_attributed: number
+          saved_at: string | null
+          signals: Json
+          source: string
+          status: string
+          target_type: string
+          updated_at: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          app_id?: string | null
+          audience?: string | null
+          audience_fit?: number
+          clicks_count?: number
+          competition_level?: number
+          contacted_at?: string | null
+          conversion_potential?: number
+          conversions_count?: number
+          cost_score?: number
+          created_at?: string
+          description?: string | null
+          distribution_score?: number
+          event_date?: string | null
+          id?: string
+          leads_count?: number
+          metadata?: Json
+          name: string
+          platform?: string | null
+          posts_count?: number
+          rationale?: string | null
+          reach_potential?: number
+          revenue_attributed?: number
+          saved_at?: string | null
+          signals?: Json
+          source?: string
+          status?: string
+          target_type: string
+          updated_at?: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          app_id?: string | null
+          audience?: string | null
+          audience_fit?: number
+          clicks_count?: number
+          competition_level?: number
+          contacted_at?: string | null
+          conversion_potential?: number
+          conversions_count?: number
+          cost_score?: number
+          created_at?: string
+          description?: string | null
+          distribution_score?: number
+          event_date?: string | null
+          id?: string
+          leads_count?: number
+          metadata?: Json
+          name?: string
+          platform?: string | null
+          posts_count?: number
+          rationale?: string | null
+          reach_potential?: number
+          revenue_attributed?: number
+          saved_at?: string | null
+          signals?: Json
+          source?: string
+          status?: string
+          target_type?: string
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       grant_applications: {
         Row: {
           answers_json: Json | null
