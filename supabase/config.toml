@@ -86,3 +86,7 @@ verify_jwt = false
 
 [functions.distribution-action]
 verify_jwt = false
+
+[functions.orchestrate-campaign]
+verify_jwt = false
+
