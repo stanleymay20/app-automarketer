@@ -109,7 +109,7 @@ export default function LandingPage() {
             {app.landing_headline || app.name}
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            {app.landing_subheadline || app.description || `Built for ${app.target_audience || "you"}`}
+            {app.landing_subheadline || `Built for you`}
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Button size="lg" onClick={scrollToCta} className="text-white gap-2" style={{ backgroundColor: brand }}>
