@@ -65,13 +65,6 @@ export type Database = {
             referencedRelation: "apps"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "analytics_snapshots_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
-            referencedColumns: ["id"]
-          },
         ]
       }
       apps: {
@@ -375,13 +368,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "campaigns_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "campaigns_goal_id_fkey"
             columns: ["goal_id"]
             isOneToOne: false
@@ -430,13 +416,6 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "click_events_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
             referencedColumns: ["id"]
           },
           {
@@ -592,13 +571,6 @@ export type Database = {
             referencedRelation: "apps"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "content_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
-            referencedColumns: ["id"]
-          },
         ]
       }
       content_scores: {
@@ -694,13 +666,6 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversions_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
             referencedColumns: ["id"]
           },
           {
@@ -1108,13 +1073,6 @@ export type Database = {
             referencedRelation: "apps"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "growth_goals_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
-            referencedColumns: ["id"]
-          },
         ]
       }
       growth_recommendations: {
@@ -1340,13 +1298,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "leads_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "leads_source_content_id_fkey"
             columns: ["source_content_id"]
             isOneToOne: false
@@ -1392,13 +1343,6 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "learning_insights_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
             referencedColumns: ["id"]
           },
         ]
@@ -1694,13 +1638,6 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "platform_connections_app_id_fkey"
-            columns: ["app_id"]
-            isOneToOne: false
-            referencedRelation: "public_app_landing"
             referencedColumns: ["id"]
           },
         ]
@@ -2004,51 +1941,26 @@ export type Database = {
       }
     }
     Views: {
-      public_app_landing: {
-        Row: {
-          id: string | null
-          landing_brand_color: string | null
-          landing_cta_label: string | null
-          landing_features: Json | null
-          landing_headline: string | null
-          landing_objections: Json | null
-          landing_proof: Json | null
-          landing_slug: string | null
-          landing_subheadline: string | null
-          landing_template: string | null
-          name: string | null
-        }
-        Insert: {
-          id?: string | null
-          landing_brand_color?: string | null
-          landing_cta_label?: string | null
-          landing_features?: Json | null
-          landing_headline?: string | null
-          landing_objections?: Json | null
-          landing_proof?: Json | null
-          landing_slug?: string | null
-          landing_subheadline?: string | null
-          landing_template?: string | null
-          name?: string | null
-        }
-        Update: {
-          id?: string | null
-          landing_brand_color?: string | null
-          landing_cta_label?: string | null
-          landing_features?: Json | null
-          landing_headline?: string | null
-          landing_objections?: Json | null
-          landing_proof?: Json | null
-          landing_slug?: string | null
-          landing_subheadline?: string | null
-          landing_template?: string | null
-          name?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       decay_distribution_recommendations: { Args: never; Returns: undefined }
+      get_public_landing: {
+        Args: { _slug: string }
+        Returns: {
+          id: string
+          landing_brand_color: string
+          landing_cta_label: string
+          landing_features: Json
+          landing_headline: string
+          landing_objections: Json
+          landing_proof: Json
+          landing_slug: string
+          landing_subheadline: string
+          landing_template: string
+          name: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
