@@ -367,6 +367,51 @@ export type Database = {
           },
         ]
       }
+      competitor_signals: {
+        Row: {
+          app_id: string | null
+          competitor_name: string
+          created_at: string
+          description: string | null
+          detected_at: string
+          id: string
+          impact_score: number
+          metadata: Json
+          recommended_response: string | null
+          signal_type: string
+          source_url: string | null
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          competitor_name: string
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          impact_score?: number
+          metadata?: Json
+          recommended_response?: string | null
+          signal_type: string
+          source_url?: string | null
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          competitor_name?: string
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          impact_score?: number
+          metadata?: Json
+          recommended_response?: string | null
+          signal_type?: string
+          source_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       content: {
         Row: {
           app_id: string
@@ -552,6 +597,45 @@ export type Database = {
           },
         ]
       }
+      customer_signals: {
+        Row: {
+          app_id: string | null
+          audience: string
+          created_at: string
+          id: string
+          metadata: Json
+          recommendation: string | null
+          sentiment: string | null
+          topic: string
+          trend_score: number
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          audience: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          recommendation?: string | null
+          sentiment?: string | null
+          topic: string
+          trend_score?: number
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          audience?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          recommendation?: string | null
+          sentiment?: string | null
+          topic?: string
+          trend_score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       grant_applications: {
         Row: {
           answers_json: Json | null
@@ -717,6 +801,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      growth_recommendations: {
+        Row: {
+          app_id: string | null
+          confidence_score: number
+          created_at: string
+          expected_impact: string | null
+          explanation: string | null
+          id: string
+          recommendation_type: string
+          status: string
+          supporting_signal_ids: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          confidence_score?: number
+          created_at?: string
+          expected_impact?: string | null
+          explanation?: string | null
+          id?: string
+          recommendation_type: string
+          status?: string
+          supporting_signal_ids?: Json
+          title: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          confidence_score?: number
+          created_at?: string
+          expected_impact?: string | null
+          explanation?: string | null
+          id?: string
+          recommendation_type?: string
+          status?: string
+          supporting_signal_ids?: Json
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       icps: {
         Row: {
@@ -906,6 +1032,51 @@ export type Database = {
           },
         ]
       }
+      market_signals: {
+        Row: {
+          app_id: string | null
+          confidence_score: number
+          created_at: string
+          description: string | null
+          detected_at: string
+          id: string
+          impact_score: number
+          metadata: Json
+          signal_type: string
+          source: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          impact_score?: number
+          metadata?: Json
+          signal_type: string
+          source?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          impact_score?: number
+          metadata?: Json
+          signal_type?: string
+          source?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messaging_angles: {
         Row: {
           angle_name: string
@@ -942,6 +1113,51 @@ export type Database = {
           updated_at?: string
           user_id?: string
           when_to_use?: string | null
+        }
+        Relationships: []
+      }
+      opportunities: {
+        Row: {
+          app_id: string | null
+          category: string
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          metadata: Json
+          recommendation: string | null
+          relevance_score: number
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          app_id?: string | null
+          category: string
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          recommendation?: string | null
+          relevance_score?: number
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          app_id?: string | null
+          category?: string
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          recommendation?: string | null
+          relevance_score?: number
+          title?: string
+          url?: string | null
+          user_id?: string
         }
         Relationships: []
       }
