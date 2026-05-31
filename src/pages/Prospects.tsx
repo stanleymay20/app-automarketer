@@ -195,7 +195,7 @@ export default function Prospects() {
   const list = tab === "all" ? prospects : grouped[tab];
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Prospects">
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
