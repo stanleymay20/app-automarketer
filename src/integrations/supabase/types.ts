@@ -372,6 +372,7 @@ export type Database = {
           app_id: string | null
           content_id: string | null
           created_at: string
+          distribution_target_id: string | null
           id: string
           ip_hash: string | null
           referrer: string | null
@@ -382,6 +383,7 @@ export type Database = {
           app_id?: string | null
           content_id?: string | null
           created_at?: string
+          distribution_target_id?: string | null
           id?: string
           ip_hash?: string | null
           referrer?: string | null
@@ -392,6 +394,7 @@ export type Database = {
           app_id?: string | null
           content_id?: string | null
           created_at?: string
+          distribution_target_id?: string | null
           id?: string
           ip_hash?: string | null
           referrer?: string | null
@@ -466,6 +469,7 @@ export type Database = {
           clicks: number | null
           content_text: string
           created_at: string
+          distribution_target_id: string | null
           engagements: number | null
           external_post_id: string | null
           external_url: string | null
@@ -489,6 +493,7 @@ export type Database = {
           clicks?: number | null
           content_text: string
           created_at?: string
+          distribution_target_id?: string | null
           engagements?: number | null
           external_post_id?: string | null
           external_url?: string | null
@@ -512,6 +517,7 @@ export type Database = {
           clicks?: number | null
           content_text?: string
           created_at?: string
+          distribution_target_id?: string | null
           engagements?: number | null
           external_post_id?: string | null
           external_url?: string | null
@@ -593,6 +599,7 @@ export type Database = {
           app_id: string
           created_at: string
           currency: string
+          distribution_target_id: string | null
           id: string
           lead_id: string
           notes: string | null
@@ -605,6 +612,7 @@ export type Database = {
           app_id: string
           created_at?: string
           currency?: string
+          distribution_target_id?: string | null
           id?: string
           lead_id: string
           notes?: string | null
@@ -617,6 +625,7 @@ export type Database = {
           app_id?: string
           created_at?: string
           currency?: string
+          distribution_target_id?: string | null
           id?: string
           lead_id?: string
           notes?: string | null
@@ -693,6 +702,7 @@ export type Database = {
           body: string | null
           campaign_id: string | null
           channel: string | null
+          content_id: string | null
           created_at: string
           id: string
           metadata: Json
@@ -705,6 +715,7 @@ export type Database = {
           body?: string | null
           campaign_id?: string | null
           channel?: string | null
+          content_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -717,6 +728,7 @@ export type Database = {
           body?: string | null
           campaign_id?: string | null
           channel?: string | null
+          content_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -734,8 +746,10 @@ export type Database = {
           created_at: string
           id: string
           insight: string
+          original_confidence: number | null
           recommendation: string | null
           related_platform: string | null
+          status: string
           user_id: string
         }
         Insert: {
@@ -745,8 +759,10 @@ export type Database = {
           created_at?: string
           id?: string
           insight: string
+          original_confidence?: number | null
           recommendation?: string | null
           related_platform?: string | null
+          status?: string
           user_id: string
         }
         Update: {
@@ -756,8 +772,10 @@ export type Database = {
           created_at?: string
           id?: string
           insight?: string
+          original_confidence?: number | null
           recommendation?: string | null
           related_platform?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -1202,6 +1220,7 @@ export type Database = {
         Row: {
           app_id: string
           created_at: string
+          distribution_target_id: string | null
           email: string
           id: string
           lead_score: number
@@ -1216,6 +1235,7 @@ export type Database = {
         Insert: {
           app_id: string
           created_at?: string
+          distribution_target_id?: string | null
           email: string
           id?: string
           lead_score?: number
@@ -1230,6 +1250,7 @@ export type Database = {
         Update: {
           app_id?: string
           created_at?: string
+          distribution_target_id?: string | null
           email?: string
           id?: string
           lead_score?: number
@@ -1896,7 +1917,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      decay_distribution_recommendations: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
