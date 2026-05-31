@@ -136,33 +136,144 @@ export default function MarketIntelligence() {
               </Card>
             )}
 
-            {/* Recommendations first — the punchline */}
-            {!!data?.recommendations.length && (
+            {/* Recommendation Memory */}
+            {data?.memory && data.memory.total > 0 && (
+              <Card className="p-4 bg-gradient-to-br from-primary/5 to-transparent">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Recommendation Memory
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground">What the AI is learning</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                  {[
+                    { label: "Suggested", value: data.memory.total },
+                    { label: "Accepted", value: data.memory.accepted },
+                    { label: "Generated", value: data.memory.generated },
+                    { label: "Published", value: data.memory.published },
+                    { label: "Converted", value: data.memory.converted },
+                    { label: "Revenue", value: `$${Math.round(data.memory.revenue)}` },
+                  ].map((m) => (
+                    <div key={m.label} className="text-center">
+                      <div className="font-display text-lg font-bold">{m.value}</div>
+                      <div className="text-[10px] text-muted-foreground">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Recommendations — executable */}
+            {!!visibleRecs.length && (
               <section className="space-y-3">
                 <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
                   <Sparkles className="h-5 w-5 text-primary" /> Campaign Opportunities
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {data.recommendations.map((r: any) => {
-                    const ev = data.evidence;
+                  {visibleRecs.map((r: any) => {
+                    const ev = data!.evidence;
                     const basisLabel =
                       ev && (ev.posts_analyzed > 0 || ev.clicks > 0 || ev.leads > 0)
-                        ? `${ev.posts_analyzed} posts · ${ev.clicks} clicks · ${ev.leads} leads · ${ev.conversions} conv.`
+                        ? `${ev.posts_analyzed} campaigns · ${ev.clicks} clicks · ${ev.leads} leads · ${ev.conversions} conv.`
                         : "Initial hypothesis — no attribution yet";
+                    const accepted = !!r.accepted_at;
+                    const hasCampaign = !!r.campaign_id;
+                    const hasLanding = !!r.landing_app_id;
+                    const hasCreatives = (r.creative_count ?? 0) > 0;
+                    const busy = (a: string) => busyRec === `${r.id}:${a}`;
                     return (
-                      <Card key={r.id} className="p-4 space-y-2 border-l-4 border-l-primary">
+                      <Card key={r.id} className="p-4 space-y-3 border-l-4 border-l-primary">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-semibold text-sm leading-tight">{r.title}</h3>
                           <Badge variant="outline" className="text-[10px] capitalize shrink-0">{r.recommendation_type}</Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">{r.explanation}</p>
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
+
+                        <div className="flex flex-wrap items-center gap-2">
                           <ScorePill label="Confidence" value={r.confidence_score} />
-                          <Badge variant="secondary" className="text-[10px] capitalize">{r.expected_impact} impact</Badge>
+                          <Badge variant="secondary" className="text-[10px] capitalize">{r.expected_impact ?? "medium"} impact</Badge>
+                          {r.status === "saved" && <Badge variant="outline" className="text-[10px]">Saved</Badge>}
                         </div>
-                        <p className="text-[10px] text-muted-foreground pt-1 border-t border-dashed">
+
+                        <p className="text-[10px] text-muted-foreground border-t border-dashed pt-2">
                           Evidence: {basisLabel}
                         </p>
+
+                        {(accepted || hasCampaign || hasLanding || hasCreatives) && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {hasCampaign && (
+                              <Badge className="bg-success/15 text-success hover:bg-success/15 text-[10px]">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />Campaign
+                              </Badge>
+                            )}
+                            {hasLanding && (
+                              <Badge className="bg-success/15 text-success hover:bg-success/15 text-[10px]">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />Landing
+                              </Badge>
+                            )}
+                            {hasCreatives && (
+                              <Badge className="bg-success/15 text-success hover:bg-success/15 text-[10px]">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />{r.creative_count} creatives
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant={hasCampaign ? "outline" : "default"}
+                            onClick={() => run(r.id, "campaign")}
+                            disabled={busy("campaign")}
+                          >
+                            <Rocket className="h-3.5 w-3.5 mr-1.5" />
+                            {busy("campaign") ? "Working…" : hasCampaign ? "Campaign ready" : "Generate Campaign"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => run(r.id, "creative_set")}
+                            disabled={busy("creative_set") || !hasCampaign}
+                          >
+                            <Layers className="h-3.5 w-3.5 mr-1.5" />
+                            {busy("creative_set") ? "Working…" : "Creative Set"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => run(r.id, "landing")}
+                            disabled={busy("landing")}
+                          >
+                            <Layout className="h-3.5 w-3.5 mr-1.5" />
+                            {busy("landing") ? "Working…" : hasLanding ? "Refresh Landing" : "Landing Page"}
+                          </Button>
+                          {hasCreatives ? (
+                            <Button size="sm" variant="ghost" asChild>
+                              <Link to="/content">
+                                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                                Review drafts
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => run(r.id, "save")}
+                              disabled={busy("save")}
+                            >
+                              <Bookmark className="h-3.5 w-3.5 mr-1.5" />
+                              Save idea
+                            </Button>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => run(r.id, "dismiss")}
+                          disabled={busy("dismiss")}
+                          className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                        >
+                          <X className="h-3 w-3" /> Dismiss
+                        </button>
                       </Card>
                     );
                   })}
