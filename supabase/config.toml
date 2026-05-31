@@ -90,3 +90,7 @@ verify_jwt = false
 [functions.orchestrate-campaign]
 verify_jwt = false
 
+[functions.analyze-content-portfolio]
+verify_jwt = false
+
+

@@ -26,6 +26,7 @@ import MarketIntelligence from "./pages/MarketIntelligence";
 import Prospects from "./pages/Prospects";
 import Distribution from "./pages/Distribution";
 import Orchestrator from "./pages/Orchestrator";
+import ContentIntelligence from "./pages/ContentIntelligence";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ function AppRoutes() {
        <Route path="/prospects" element={<ProtectedRoute><Prospects /></ProtectedRoute>} />
        <Route path="/distribution" element={<ProtectedRoute><Distribution /></ProtectedRoute>} />
        <Route path="/orchestrator" element={<ProtectedRoute><Orchestrator /></ProtectedRoute>} />
+       <Route path="/content-intelligence" element={<ProtectedRoute><ContentIntelligence /></ProtectedRoute>} />
        <Route path="/funding" element={<ProtectedRoute><Funding /></ProtectedRoute>} />
        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/lp/:slug" element={<LandingPage />} />

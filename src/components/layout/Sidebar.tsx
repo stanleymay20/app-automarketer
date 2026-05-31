@@ -19,6 +19,7 @@ import {
   Target,
   Megaphone,
   Rocket,
+  Brain,
   X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -32,6 +33,7 @@ const navItems = [
   { icon: FileText, label: "Create Post", path: "/create" },
   { icon: AppWindow, label: "Campaigns", path: "/content" },
   { icon: Rocket, label: "Orchestrator", path: "/orchestrator" },
+  { icon: Brain, label: "Portfolio Intel", path: "/content-intelligence" },
   { icon: Radar, label: "Market Intel", path: "/market-intelligence" },
   { icon: Target, label: "Prospects", path: "/prospects" },
   { icon: Megaphone, label: "Distribution", path: "/distribution" },
