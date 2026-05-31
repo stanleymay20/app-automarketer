@@ -74,3 +74,9 @@ verify_jwt = false
 
 [functions.execute-recommendation]
 verify_jwt = false
+
+[functions.discover-prospects]
+verify_jwt = false
+
+[functions.prospect-action]
+verify_jwt = false
