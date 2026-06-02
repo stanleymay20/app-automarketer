@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type RealitySnapshot = {
-  publish: { total: number; published: number; failed: number; pending: number; success_rate: number; avg_latency_ms: number | null; recovered_by_retry: number };
+  publish: { total: number; published: number; failed: number; pending: number; success_rate: number; avg_latency_ms: number | null; recovered_by_retry: number; by_platform: { platform: string; published: number; failed: number; success_rate: number }[] };
   funnel: { clicks: number; leads: number; conversions: number; revenue: number };
   attribution: { content_to_persona: number; content_to_distribution: number; content_to_campaign: number; content_to_recommendation: number; leads_to_content: number; revenue_to_content: number };
   engines: { key: string; label: string; rows: number; last_activity: string | null }[];
