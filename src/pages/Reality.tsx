@@ -85,6 +85,33 @@ export default function Reality() {
                 <MetricCard label="Recovered by Retry" value={data?.publish.recovered_by_retry ?? 0} />
               </div>
 
+              {(data?.publish.by_platform.length ?? 0) > 0 && (
+                <div>
+                  <div className="mb-2 text-sm font-medium">Success rate by platform</div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {data!.publish.by_platform.map((p) => {
+                      const tone = p.success_rate >= 95 ? "text-emerald-600" : p.success_rate >= 50 ? "text-amber-600" : "text-rose-600";
+                      return (
+                        <div key={p.platform} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium capitalize">{p.platform}</span>
+                            <span className={`tabular-nums font-semibold ${tone}`}>{p.success_rate}%</span>
+                          </div>
+                          <div className="mt-1 flex justify-between text-xs text-muted-foreground tabular-nums">
+                            <span>{p.published} published</span>
+                            <span>{p.failed} failed</span>
+                          </div>
+                          <Progress value={p.success_rate} className="h-1.5 mt-2" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    The overall rate is a blended average. Per-platform tells the real story.
+                  </div>
+                </div>
+              )}
+
               <div>
                 <div className="mb-2 text-sm font-medium">Top failure causes</div>
                 {failures.isLoading ? <div className="text-sm text-muted-foreground">Analyzing…</div> : (failures.data?.groups.length ?? 0) === 0 ? (
