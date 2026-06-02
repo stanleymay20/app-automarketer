@@ -43,6 +43,8 @@ Produce a concise 400-word briefing covering:
 
 Be specific. No fluff.`;
 
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25_000);
     const res = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
@@ -54,12 +56,16 @@ Be specific. No fluff.`;
         messages: [{ role: "user", content: prompt }],
         max_tokens: 700,
       }),
-    });
-    if (!res.ok) return "";
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(timer));
+    if (!res.ok) {
+      console.warn("[audience] Perplexity non-ok:", res.status);
+      return "";
+    }
     const data = await res.json();
     return data?.choices?.[0]?.message?.content || "";
   } catch (e) {
-    console.error("Perplexity research failed:", e);
+    console.error("[audience] Perplexity research failed (continuing without research):", (e as Error).message);
     return "";
   }
 }
