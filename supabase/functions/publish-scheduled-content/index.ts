@@ -290,9 +290,13 @@ async function publishToX(
       if (refreshed) {
         accessToken = refreshed.access_token;
       } else {
-        return { success: false, error: "Token expired and refresh failed. Please reconnect X.", permanent: true };
+        // Fix 1: refresh failed → mark disconnected so further queued posts
+        // short-circuit on the pre-flight check instead of burning more calls.
+        await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
+        return { success: false, error: "X token expired and refresh failed. Please reconnect X.", permanent: true };
       }
     } else if (expiresAt < new Date() && !connection.refresh_token) {
+      await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
       return { success: false, error: "X token expired. Please reconnect.", permanent: true };
     }
   }
@@ -315,6 +319,11 @@ async function publishToX(
     const errorDetail = tweetData.detail || tweetData.title || JSON.stringify(tweetData);
     // 402 = credits depleted, 403 = permissions, 401 = auth — all permanent
     const isPermanent = [401, 402, 403].includes(tweetResponse.status);
+    // Fix 1: on auth/credit failures, disconnect so the next batch's pre-flight
+    // skips queued X posts (no_connection) instead of burning more credits.
+    if (isPermanent) {
+      await supabase.from("platform_connections").update({ connected: false }).eq("id", connection.id);
+    }
     return { success: false, error: `X API ${tweetResponse.status}: ${errorDetail}`, permanent: isPermanent };
   }
 
