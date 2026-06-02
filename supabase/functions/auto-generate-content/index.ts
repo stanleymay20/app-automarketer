@@ -369,6 +369,17 @@ No markdown, no code blocks, no explanations. Just the JSON array.`;
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const posts = JSON.parse(jsonMatch[0]);
+        // Fix 2: X has a hard 280-char limit. Trim to 270 with ellipsis so the
+        // failure never enters the publish queue (mirrors generate-content).
+        for (const p of posts) {
+          if (
+            normalizedPlatform === "x" &&
+            typeof p?.content === "string" &&
+            p.content.length > 270
+          ) {
+            p.content = p.content.slice(0, 267).trimEnd() + "…";
+          }
+        }
         allPosts.push(...posts);
       }
     } catch (parseError) {
