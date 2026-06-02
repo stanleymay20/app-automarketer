@@ -53,7 +53,13 @@ export default function Audience() {
   const generate = useGenerateAudience();
 
   const hasData = icps.length > 0 || personas.length > 0;
-  const isGenerating = generate.isPending || profile?.status === "generating";
+  // Only treat as "generating" if (a) mutation is currently in flight, OR
+  // (b) status says generating AND it started within the last 3 minutes.
+  // This prevents permanently-stuck rows from blocking the rebuild button.
+  const startedAt = profile?.last_generated_at ? new Date(profile.last_generated_at).getTime() : 0;
+  const recentlyStarted = profile?.status === "generating" && Date.now() - startedAt < 3 * 60_000 && startedAt > 0;
+  const isGenerating = generate.isPending || recentlyStarted;
+  const previousFailed = profile?.status === "failed" && !generate.isPending;
 
   return (
     <DashboardLayout title="Audience">
