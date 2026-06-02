@@ -175,6 +175,10 @@ Rules:
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let admin: ReturnType<typeof createClient> | null = null;
+  let userId: string | null = null;
+  let appId: string | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization");
@@ -183,42 +187,44 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData?.user) throw new Error("Unauthorized");
-    const userId = userData.user.id;
+    userId = userData.user.id;
 
-    const { app_id } = await req.json();
-    if (!app_id) throw new Error("app_id is required");
+    const body = await req.json().catch(() => ({}));
+    appId = body?.app_id ?? null;
+    if (!appId) throw new Error("app_id is required");
 
-    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: app, error: appErr } = await admin
       .from("apps")
       .select("*")
-      .eq("id", app_id)
+      .eq("id", appId)
       .eq("user_id", userId)
       .single();
     if (appErr || !app) throw new Error("App not found");
 
-    // mark generating
+    console.log(`[audience] start app=${appId} name="${app.name}"`);
+
     await admin.from("audience_profiles").upsert({
       user_id: userId,
-      app_id,
+      app_id: appId,
       status: "generating",
     }, { onConflict: "app_id" });
 
     const researchMd = await research(app);
+    console.log(`[audience] research len=${researchMd.length}`);
     const pack = await generateIntelligence(app, researchMd);
+    console.log(`[audience] AI returned icps=${pack?.icps?.length ?? 0} personas=${pack?.personas?.length ?? 0} journey=${pack?.journey?.length ?? 0} angles=${pack?.angles?.length ?? 0}`);
 
-    // wipe existing rows for this app (idempotent regenerate)
     await Promise.all([
-      admin.from("icps").delete().eq("app_id", app_id),
-      admin.from("personas").delete().eq("app_id", app_id),
-      admin.from("journey_stages").delete().eq("app_id", app_id),
-      admin.from("messaging_angles").delete().eq("app_id", app_id),
+      admin.from("icps").delete().eq("app_id", appId),
+      admin.from("personas").delete().eq("app_id", appId),
+      admin.from("journey_stages").delete().eq("app_id", appId),
+      admin.from("messaging_angles").delete().eq("app_id", appId),
     ]);
 
     const icpRows = (pack.icps || []).slice(0, 3).map((i: any, idx: number) => ({
-      user_id: userId,
-      app_id,
+      user_id: userId, app_id: appId,
       segment: i.segment || "Unnamed segment",
       company_size: i.company_size || null,
       industry: i.industry || null,
@@ -229,15 +235,12 @@ Deno.serve(async (req) => {
     if (icpRows.length) await admin.from("icps").insert(icpRows);
 
     const personaRows = (pack.personas || []).slice(0, 4).map((p: any, idx: number) => ({
-      user_id: userId,
-      app_id,
+      user_id: userId, app_id: appId,
       title: p.title || "Persona",
       company_size: p.company_size || null,
       responsibilities: p.responsibilities || [],
-      pains: p.pains || [],
-      goals: p.goals || [],
-      triggers: p.triggers || [],
-      objections: p.objections || [],
+      pains: p.pains || [], goals: p.goals || [],
+      triggers: p.triggers || [], objections: p.objections || [],
       channels: p.channels || [],
       content_style: p.content_style || null,
       sort_order: idx,
@@ -251,10 +254,7 @@ Deno.serve(async (req) => {
     const journeyRows = JOURNEY_STAGES.map((stage, idx) => {
       const j = journeyByStage.get(stage) || {};
       return {
-        user_id: userId,
-        app_id,
-        stage,
-        stage_order: idx,
+        user_id: userId, app_id: appId, stage, stage_order: idx,
         customer_thinking: j.customer_thinking || null,
         pains: j.pains || [],
         best_content: j.best_content || null,
@@ -265,8 +265,7 @@ Deno.serve(async (req) => {
     await admin.from("journey_stages").insert(journeyRows);
 
     const angleRows = (pack.angles || []).slice(0, 6).map((a: any, idx: number) => ({
-      user_id: userId,
-      app_id,
+      user_id: userId, app_id: appId,
       angle_name: a.angle_name || "Angle",
       hook_template: a.hook_template || null,
       when_to_use: a.when_to_use || null,
@@ -276,13 +275,13 @@ Deno.serve(async (req) => {
     if (angleRows.length) await admin.from("messaging_angles").insert(angleRows);
 
     await admin.from("audience_profiles").upsert({
-      user_id: userId,
-      app_id,
+      user_id: userId, app_id: appId,
       status: "ready",
       last_generated_at: new Date().toISOString(),
       raw_research: researchMd || null,
     }, { onConflict: "app_id" });
 
+    console.log(`[audience] ✓ done app=${appId}`);
     return new Response(
       JSON.stringify({
         success: true,
@@ -296,9 +295,20 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
-    console.error("generate-audience-intelligence error:", e);
+    const msg = (e as Error).message || "Unknown error";
+    console.error("[audience] error:", msg);
+    // Always clear stuck "generating" so the user can retry.
+    if (admin && userId && appId) {
+      try {
+        await admin.from("audience_profiles").upsert({
+          user_id: userId, app_id: appId, status: "failed",
+        }, { onConflict: "app_id" });
+      } catch (resetErr) {
+        console.error("[audience] failed to reset status:", (resetErr as Error).message);
+      }
+    }
     return new Response(
-      JSON.stringify({ error: (e as Error).message }),
+      JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
