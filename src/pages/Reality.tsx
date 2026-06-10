@@ -49,8 +49,92 @@ export default function Reality() {
                 <PlayCircle className="mr-2 h-4 w-4" />
                 {funnelTest.isPending ? "Running…" : "Fire test funnel"}
               </Button>
-            </div>
           </div>
+
+          {/* Proof Chain — the moat made visible */}
+          {(() => {
+            const f = data?.funnel;
+            const clicks = f?.clicks ?? 0;
+            const leads = f?.leads ?? 0;
+            const convs = f?.conversions ?? 0;
+            const rev = f?.revenue ?? 0;
+            const fullyProven = clicks > 0 && leads > 0 && convs > 0 && rev > 0;
+            const partial = (clicks > 0 || leads > 0 || convs > 0 || rev > 0) && !fullyProven;
+            const steps = [
+              { label: "Click", value: clicks, icon: MousePointerClick, ok: clicks > 0 },
+              { label: "Lead", value: leads, icon: UserPlus, ok: leads > 0 },
+              { label: "Conversion", value: convs, icon: CheckCircle2, ok: convs > 0 },
+              { label: "Revenue", value: `$${rev.toLocaleString()}`, icon: DollarSign, ok: rev > 0 },
+            ];
+            return (
+              <Card className={fullyProven ? "border-emerald-500/40 bg-emerald-500/5" : partial ? "border-amber-500/40 bg-amber-500/5" : "border-border"}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <ShieldCheck className="h-4 w-4" />
+                      Proof Chain — Content to Revenue
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className={
+                        fullyProven
+                          ? "border-emerald-500/50 text-emerald-700 bg-emerald-500/10"
+                          : partial
+                          ? "border-amber-500/50 text-amber-700 bg-amber-500/10"
+                          : "border-border text-muted-foreground"
+                      }
+                    >
+                      {fullyProven ? "Proven end-to-end" : partial ? "Partially proven" : "Not yet proven"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The one thing competitors can't show. Every step here is a real database row, not a claim.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-4 gap-2 items-stretch">
+                    {steps.map((s, i) => {
+                      const Icon = s.icon;
+                      return (
+                        <div key={s.label} className="relative">
+                          <div
+                            className={`rounded-lg border p-3 h-full transition-colors ${
+                              s.ok
+                                ? "border-emerald-500/40 bg-emerald-500/5"
+                                : "border-dashed border-border bg-muted/30"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              {s.ok ? (
+                                <Icon className="h-4 w-4 text-emerald-600" />
+                              ) : (
+                                <CircleDashed className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</span>
+                            </div>
+                            <div className={`mt-1 text-lg font-semibold tabular-nums ${s.ok ? "" : "text-muted-foreground"}`}>
+                              {s.value}
+                            </div>
+                          </div>
+                          {i < steps.length - 1 && (
+                            <ArrowRight className="hidden md:block absolute top-1/2 -right-2 -translate-y-1/2 h-3 w-3 text-muted-foreground z-10" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!fullyProven && (
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      {clicks === 0
+                        ? "No real visitor has hit the funnel yet. Use \"Fire test funnel\" to verify the plumbing, then drive a real visitor."
+                        : "Plumbing works. Next milestone: a real conversion with real revenue from a real visitor."}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
 
           {/* Health score */}
           <Card>
