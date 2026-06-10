@@ -6,7 +6,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { useState } from "react";
 import { useFunnelTest, usePublishFailures, useRealitySnapshot } from "@/hooks/useReality";
-import { AlertCircle, Activity, Target, Gauge, Sparkles, PlayCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, Activity, Target, Gauge, Sparkles, PlayCircle, RefreshCw, MousePointerClick, UserPlus, CheckCircle2, DollarSign, ArrowRight, ShieldCheck, CircleDashed } from "lucide-react";
+
 import { formatDistanceToNow } from "date-fns";
 
 function StatusDot({ ok }: { ok: boolean }) {
