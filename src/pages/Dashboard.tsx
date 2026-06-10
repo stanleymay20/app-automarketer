@@ -215,6 +215,34 @@ export default function Dashboard() {
                       <Badge variant={a.impact === "High" ? "default" : "outline"} className="text-[10px]">
                         {a.impact} impact
                       </Badge>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors">
+                            <Info className="h-3 w-3" />
+                            Why am I seeing this?
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 text-xs space-y-2" align="start">
+                          <div>
+                            <p className="font-semibold text-foreground mb-1">Evidence</p>
+                            <p className="text-muted-foreground">{a.evidence}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Confidence</p>
+                              <p className="font-semibold text-foreground">{a.confidence}%</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Expected impact</p>
+                              <p className="font-semibold text-foreground">{a.impact}</p>
+                            </div>
+                          </div>
+                          <div className="pt-1 border-t border-border">
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Source</p>
+                            <p className="font-mono text-[11px] text-foreground">{a.source}</p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{a.reason}</p>
                   </div>
