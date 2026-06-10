@@ -96,5 +96,10 @@ verify_jwt = false
 [functions.rediscover-distribution]
 verify_jwt = false
 
+[functions.analyze-website]
+verify_jwt = false
+
+
+
 
 
