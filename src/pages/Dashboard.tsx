@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useApps } from "@/hooks/useApps";
 import { useContent } from "@/hooks/useContent";
 import { useRealitySnapshot } from "@/hooks/useReality";
+import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
