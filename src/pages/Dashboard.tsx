@@ -70,6 +70,7 @@ export default function Dashboard() {
   const { data: reality } = useRealitySnapshot();
   const { data: fundingCount = 0 } = useFundingCount();
   const { data: leadsCount = 0 } = useLeadsCount();
+  const { data: connections } = usePlatformConnections();
 
   if (!isLoading && apps && apps.length === 0) {
     return <Navigate to="/onboarding" replace />;
@@ -82,6 +83,18 @@ export default function Dashboard() {
   const activeCampaigns = (content || []).filter((c) => c.status === "approved" || c.status === "pending").length;
   const drafts = (content || []).filter((c) => c.status === "pending").length;
   const publishFails = reality?.publish.failed ?? 0;
+  const publishedCount = (content || []).filter((c) => c.status === "published").length;
+  const hasConnection = (connections || []).some((c) => c.connected);
+
+  // First Win checklist — shown until user gets their first attributed click.
+  const firstWinSteps = [
+    { label: "Connect a platform", done: hasConnection, path: "/settings?tab=connections", icon: Plug },
+    { label: "Publish your first post", done: publishedCount > 0, path: "/content", icon: Send },
+    { label: "Drive your first attributed click", done: clicks > 0, path: "/orchestrator", icon: MousePointerClick },
+  ];
+  const firstWinComplete = firstWinSteps.every((s) => s.done);
+  const nextStep = firstWinSteps.find((s) => !s.done);
+  const completedCount = firstWinSteps.filter((s) => s.done).length;
 
   // Recommendation engine — driven by real signals, always traceable.
   const actions: Action[] = [];
