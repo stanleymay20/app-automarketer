@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_rate_limits: {
+        Row: {
+          call_count: number
+          created_at: string
+          function_name: string
+          id: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          call_count?: number
+          created_at?: string
+          function_name: string
+          id?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          call_count?: number
+          created_at?: string
+          function_name?: string
+          id?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       analytics_snapshots: {
         Row: {
           app_id: string | null
@@ -1739,6 +1766,9 @@ export type Database = {
         Row: {
           app_id: string | null
           category: string
+          contact_email: string | null
+          contact_linkedin: string | null
+          contact_name: string | null
           contacted_at: string | null
           converted_at: string | null
           created_at: string
@@ -1752,12 +1782,17 @@ export type Database = {
           matched_icp_id: string | null
           matched_persona_id: string | null
           name: string
+          next_action_at: string | null
+          notes: string | null
           opportunity_score: number
+          owner_id: string | null
+          pipeline_stage: string
           prospect_score: number
           reachability_score: number
           responded_at: string | null
           revenue_attributed: number
           saved_at: string | null
+          sent_at: string | null
           signals: Json
           source: string
           status: string
@@ -1769,6 +1804,9 @@ export type Database = {
         Insert: {
           app_id?: string | null
           category: string
+          contact_email?: string | null
+          contact_linkedin?: string | null
+          contact_name?: string | null
           contacted_at?: string | null
           converted_at?: string | null
           created_at?: string
@@ -1782,12 +1820,17 @@ export type Database = {
           matched_icp_id?: string | null
           matched_persona_id?: string | null
           name: string
+          next_action_at?: string | null
+          notes?: string | null
           opportunity_score?: number
+          owner_id?: string | null
+          pipeline_stage?: string
           prospect_score?: number
           reachability_score?: number
           responded_at?: string | null
           revenue_attributed?: number
           saved_at?: string | null
+          sent_at?: string | null
           signals?: Json
           source?: string
           status?: string
@@ -1799,6 +1842,9 @@ export type Database = {
         Update: {
           app_id?: string | null
           category?: string
+          contact_email?: string | null
+          contact_linkedin?: string | null
+          contact_name?: string | null
           contacted_at?: string | null
           converted_at?: string | null
           created_at?: string
@@ -1812,12 +1858,17 @@ export type Database = {
           matched_icp_id?: string | null
           matched_persona_id?: string | null
           name?: string
+          next_action_at?: string | null
+          notes?: string | null
           opportunity_score?: number
+          owner_id?: string | null
+          pipeline_stage?: string
           prospect_score?: number
           reachability_score?: number
           responded_at?: string | null
           revenue_attributed?: number
           saved_at?: string | null
+          sent_at?: string | null
           signals?: Json
           source?: string
           status?: string
